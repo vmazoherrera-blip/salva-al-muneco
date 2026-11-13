@@ -9,96 +9,103 @@ interface MathRendererProps {
   className?: string;
 }
 
+/**
+ * Pure parsing function that handles mixed Markdown, LaTeX text commands,
+ * display math ($$...$$), inline math ($...$), and raw matrix blocks.
+ */
+export function renderLatexToHtml(latex: string, displayMode: boolean = false): string {
+  if (!latex) return "";
+
+  const trimmed = latex.trim();
+
+  // 1. Direct formula without text (options, pure matrices, fractions, coordinates)
+  if (
+    !trimmed.includes("$") &&
+    (trimmed.startsWith("\\begin{") ||
+      trimmed.startsWith("\\frac{") ||
+      trimmed.startsWith("-\\frac{") ||
+      trimmed.startsWith("\\pmatrix") ||
+      trimmed.startsWith("\\left(") ||
+      trimmed.includes("\\begin{pmatrix}") ||
+      trimmed.includes("\\cdot"))
+  ) {
+    try {
+      return katex.renderToString(trimmed, {
+        displayMode,
+        throwOnError: false,
+      });
+    } catch {
+      return trimmed;
+    }
+  }
+
+  // 2. Preprocess text commands & line breaks
+  let text = latex;
+
+  // Convert markdown **bold** and LaTeX \textbf{...}
+  text = text.replace(/\\textbf\{([^{}]+(?:\$[^{}$]+\$[^{}]*)*)\}/g, "<strong>$1</strong>");
+  text = text.replace(/\\textbf\{([^}]+)\}/g, "<strong>$1</strong>");
+  text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  text = text.replace(/\\textit\{([^}]+)\}/g, "<em>$1</em>");
+
+  // Line breaks & spacing
+  text = text.replace(/\\\\\[\d+pt\]/g, "<br/><br/>");
+  text = text.replace(/\\\\/g, "<br/>");
+  text = text.replace(/\\newline/g, "<br/>");
+  text = text.replace(/\\quad/g, "&emsp;");
+
+  // 3. Process Display Math: $$ ... $$
+  const displayRegex = /\$\$([\s\S]+?)\$\$/g;
+  text = text.replace(displayRegex, (_, mathContent) => {
+    // Strip any accidental internal dollar signs
+    const cleanMath = mathContent.replace(/\$/g, "").trim();
+    try {
+      return katex.renderToString(cleanMath, {
+        displayMode: true,
+        throwOnError: false,
+      });
+    } catch {
+      return mathContent;
+    }
+  });
+
+  // 4. Process Inline Math: $ ... $
+  const inlineRegex = /\$([^\$]+?)\$/g;
+  text = text.replace(inlineRegex, (_, mathContent) => {
+    const cleanMath = mathContent.trim();
+    try {
+      return katex.renderToString(cleanMath, {
+        displayMode: false,
+        throwOnError: false,
+      });
+    } catch {
+      return mathContent;
+    }
+  });
+
+  // 5. Catch any un-wrapped \begin{pmatrix} ... \end{pmatrix} that remained outside $
+  const matrixRegex = /\\begin\{pmatrix\}[\s\S]*?\\end\{pmatrix\}/g;
+  text = text.replace(matrixRegex, (matrixContent) => {
+    try {
+      return katex.renderToString(matrixContent.trim(), {
+        displayMode: false,
+        throwOnError: false,
+      });
+    } catch {
+      return matrixContent;
+    }
+  });
+
+  return text;
+}
+
 export const MathRenderer: React.FC<MathRendererProps> = ({
   latex,
   displayMode = false,
   className = "",
 }) => {
   const html = useMemo(() => {
-    if (!latex) return "";
-
-    let text = latex;
-
-    // 1. If the input is purely a LaTeX matrix or single equation without text
-    const trimmed = text.trim();
-    if (
-      !trimmed.includes("$") &&
-      (trimmed.startsWith("\\begin{") ||
-        trimmed.startsWith("\\frac{") ||
-        trimmed.startsWith("\\pmatrix") ||
-        trimmed.startsWith("\\left("))
-    ) {
-      try {
-        return katex.renderToString(trimmed, {
-          displayMode: true,
-          throwOnError: false,
-        });
-      } catch {
-        return trimmed;
-      }
-    }
-
-    // 2. Preprocess LaTeX formatting commands in text:
-    // Handle \textbf{...} converting to <strong>...</strong> (even if it contains math inside)
-    text = text.replace(/\\textbf\{([^{}]+(?:\$[^{}$]+\$[^{}]*)*)\}/g, "<strong>$1</strong>");
-    text = text.replace(/\\textbf\{([^}]+)\}/g, "<strong>$1</strong>");
-    text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-    text = text.replace(/\\textit\{([^}]+)\}/g, "<em>$1</em>");
-
-    // Handle line breaks \newline, \\[...pt], \\
-    text = text.replace(/\\\\\[\d+pt\]/g, "<br/><br/>");
-    text = text.replace(/\\\\/g, "<br/>");
-    text = text.replace(/\\newline/g, "<br/>");
-    text = text.replace(/\\quad/g, "&emsp;");
-
-    // 3. Ensure any standalone \begin{pmatrix}...\end{pmatrix} that isn't wrapped in $ gets wrapped
-    text = text.replace(
-      /(?<!\$)\\begin\{pmatrix\}[\s\S]*?\\end\{pmatrix\}(?!\$)/g,
-      (match) => `$${match}$`
-    );
-
-    // 4. Parse display math $$...$$ and inline math $...$
-    // Split by $$...$$ first, then by $...$
-    const tokens: string[] = [];
-    const displayParts = text.split(/(\$\$[\s\S]+?\$\$)/g);
-
-    for (const dPart of displayParts) {
-      if (dPart.startsWith("$$") && dPart.endsWith("$$") && dPart.length > 4) {
-        const mathContent = dPart.slice(2, -2).trim();
-        try {
-          tokens.push(
-            katex.renderToString(mathContent, {
-              displayMode: true,
-              throwOnError: false,
-            })
-          );
-        } catch {
-          tokens.push(dPart);
-        }
-      } else {
-        // Now split by inline math $...$
-        const inlineParts = dPart.split(/(\$[^\$]+?\$)/g);
-        for (const iPart of inlineParts) {
-          if (iPart.startsWith("$") && iPart.endsWith("$") && iPart.length > 2) {
-            const math = iPart.slice(1, -1).trim();
-            try {
-              tokens.push(
-                katex.renderToString(math, {
-                  displayMode: false,
-                  throwOnError: false,
-                })
-              );
-            } catch {
-              tokens.push(iPart);
-            }
-          } else {
-            tokens.push(iPart);
-          }
-        }
-      }
-    }
-
-    return tokens.join("");
+    return renderLatexToHtml(latex, displayMode);
   }, [latex, displayMode]);
 
   return (

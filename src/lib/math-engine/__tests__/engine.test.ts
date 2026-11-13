@@ -193,3 +193,49 @@ describe("Question Generator (100 random runs per level)", () => {
     }
   });
 });
+
+describe("MathRenderer KaTeX HTML parser", () => {
+  it("renders pure matrix and vector expressions into valid KaTeX HTML", async () => {
+    const { renderLatexToHtml } = await import("../../../components/MathRenderer");
+
+    const matrixLatex = "\\begin{pmatrix} 1 & 0 \\\\ 0 & -1 \\end{pmatrix}";
+    const html1 = renderLatexToHtml(matrixLatex);
+    expect(html1).toContain("katex");
+    expect(html1).toContain("pmatrix");
+
+    const vectorLatex = "\\begin{pmatrix} 3 \\\\ -2 \\end{pmatrix}";
+    const html2 = renderLatexToHtml(vectorLatex);
+    expect(html2).toContain("katex");
+  });
+
+  it("renders mixed prompts with matrices and bold text without raw LaTeX artifacts", async () => {
+    const { renderLatexToHtml } = await import("../../../components/MathRenderer");
+
+    const prompt1 = "Dada la matriz de transformación: \\\\[6pt] $$A = \\begin{pmatrix} 1 & 2 \\\\ 3 & 4 \\end{pmatrix}$$ \\\\[6pt] **Calcula el valor del determinante:**";
+    const html = renderLatexToHtml(prompt1);
+    expect(html).toContain("katex");
+    expect(html).toContain("<strong>");
+    expect(html).not.toContain("\\textbf");
+    expect(html).not.toContain("$$");
+  });
+
+  it("successfully parses all 10 match questions and options without throwing or leaving raw $$", async () => {
+    const { renderLatexToHtml } = await import("../../../components/MathRenderer");
+    const match = generateMatchQuestions();
+
+    for (const q of match) {
+      const promptHtml = renderLatexToHtml(q.promptLatex);
+      expect(promptHtml).toBeDefined();
+      expect(promptHtml).not.toContain("$$");
+      expect(promptHtml).not.toContain("\\textbf");
+
+      if (q.optionsLatex) {
+        for (const opt of q.optionsLatex) {
+          const optHtml = renderLatexToHtml(opt);
+          expect(optHtml).toBeDefined();
+          expect(optHtml).toContain("katex");
+        }
+      }
+    }
+  });
+});

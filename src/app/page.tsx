@@ -183,7 +183,7 @@ export default function HomePage() {
             Salva al <span className="text-[#218653]">Muñeco</span>
           </h1>
           <p className="mt-3 text-base sm:text-lg text-[#5c7285] font-medium leading-relaxed">
-            Domina las <strong>transformaciones lineales</strong> y operaciones matriciales $2\times 2$. Cada acierto
+            Domina las <strong>transformaciones lineales</strong> y operaciones matriciales <strong>2×2</strong>. Cada acierto
             retira una pieza de la horca; si llegas a 0 piezas, ¡salvas al muñeco!
           </p>
         </div>
