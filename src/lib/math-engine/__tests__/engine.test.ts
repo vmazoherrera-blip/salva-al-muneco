@@ -419,4 +419,32 @@ describe("Visual Math Parser & Natural Language Editor (visual-parser.ts)", () =
     expect(detectMathFormat("-3/4")).toBe("scalar_text");
     expect(detectMathFormat("Opción de texto")).toBe("scalar_text");
   });
+
+  it("cleans raw LaTeX spacing artifacts like \\\\[6pt] to natural newlines", async () => {
+    const { cleanLatexToNaturalText } = await import("../visual-parser");
+    const raw = "Calcula el producto: \\\\[6pt] $$A = \\begin{pmatrix} 1 & 2 \\\\ 3 & 4 \\end{pmatrix}$$ \\\\[6pt] ¿Resultado?";
+    const cleaned = cleanLatexToNaturalText(raw);
+    expect(cleaned).not.toContain("\\[6pt]");
+    expect(cleaned).toContain("\n\n");
+  });
+
+  it("extracts matrices and vectors from question prompts for visual editing", async () => {
+    const { extractPromptMatrices, replacePromptMatrix } = await import("../visual-parser");
+    const prompt = `Calcula el producto: $$A = \\begin{pmatrix} 1 & 2 \\\\ -3 & 2 \\end{pmatrix}, \\quad v = \\begin{pmatrix} -2 \\\\ 2 \\end{pmatrix}$$ ¿Cuál es $A \\cdot v$?`;
+
+    const items = extractPromptMatrices(prompt);
+    expect(items.length).toBe(2);
+
+    expect(items[0].type).toBe("matrix_2x2");
+    expect(items[0].name).toBe("A");
+    expect(items[0].matrix).toEqual({ a: "1", b: "2", c: "-3", d: "2" });
+
+    expect(items[1].type).toBe("vector_2d");
+    expect(items[1].name).toBe("v");
+    expect(items[1].vector).toEqual({ x: "-2", y: "2" });
+
+    // Test replacement
+    const updated = replacePromptMatrix(prompt, items[0].rawMatch, "\\begin{pmatrix} 9 & 8 \\\\ 7 & 6 \\end{pmatrix}");
+    expect(updated).toContain("\\begin{pmatrix} 9 & 8 \\\\ 7 & 6 \\end{pmatrix}");
+  });
 });

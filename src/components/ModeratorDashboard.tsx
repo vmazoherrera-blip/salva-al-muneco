@@ -10,6 +10,14 @@ import {
 import { QuestionData } from "@/lib/math-engine/templates";
 import { MathRenderer } from "./MathRenderer";
 import { VisualOptionEditor } from "./VisualOptionEditor";
+import { SymbolabPanel } from "./SymbolabPanel";
+import {
+  extractPromptMatrices,
+  replacePromptMatrix,
+  cleanLatexToNaturalText,
+  buildMatrix2x2,
+  buildVector2,
+} from "@/lib/math-engine/visual-parser";
 import {
   Users,
   Activity,
@@ -65,10 +73,16 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
   const [localQuestions, setLocalQuestions] = useState<QuestionData[]>(masterQuestions);
   const [selectedQIndex, setSelectedQIndex] = useState<number>(0);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [symbolabTarget, setSymbolabTarget] = useState<"prompt" | "explanation">("prompt");
 
   useEffect(() => {
     if (masterQuestions && masterQuestions.length > 0) {
-      setLocalQuestions(masterQuestions);
+      const cleaned = masterQuestions.map((q) => ({
+        ...q,
+        promptLatex: cleanLatexToNaturalText(q.promptLatex),
+        explanationLatex: cleanLatexToNaturalText(q.explanationLatex),
+      }));
+      setLocalQuestions(cleaned);
     }
   }, [masterQuestions]);
 
@@ -124,8 +138,13 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
       });
       const data = await res.json();
       if (data.success && data.questions) {
-        setLocalQuestions(data.questions);
-        if (onQuestionsUpdated) onQuestionsUpdated(data.questions);
+        const cleaned = data.questions.map((q: QuestionData) => ({
+          ...q,
+          promptLatex: cleanLatexToNaturalText(q.promptLatex),
+          explanationLatex: cleanLatexToNaturalText(q.explanationLatex),
+        }));
+        setLocalQuestions(cleaned);
+        if (onQuestionsUpdated) onQuestionsUpdated(cleaned);
         alert("¡Preguntas aleatorias generadas exitosamente!");
         onRefresh();
       } else {
@@ -729,358 +748,284 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
           </div>
 
           {/* Current Question Form */}
-          {currentQ && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Left Column: Form Fields */}
-              <div className="lg:col-span-7 space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-[#64748b] mb-1">
-                      Nivel de Dificultad
-                    </label>
-                    <select
-                      value={currentQ.level}
-                      onChange={(e) =>
-                        updateCurrentQuestion({ level: e.target.value as any })
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#dce6ef] bg-[#f8fafc] text-xs font-bold text-[#23395b] outline-none"
-                    >
-                      <option value="basico">Básico (Preguntas 1-3)</option>
-                      <option value="intermedio">Intermedio (Preguntas 4-7)</option>
-                      <option value="avanzado">Avanzado (Preguntas 8-10)</option>
-                    </select>
-                  </div>
+          {currentQ && (() => {
+            const promptMatrices = extractPromptMatrices(currentQ.promptLatex);
 
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-[#64748b] mb-1">
-                      Tipo de Respuesta
-                    </label>
-                    <select
-                      value={currentQ.questionType}
-                      onChange={(e) =>
-                        updateCurrentQuestion({
-                          questionType: e.target.value as any,
-                          optionsLatex:
-                            e.target.value === "multiple_choice"
-                              ? currentQ.optionsLatex || [currentQ.correctAnswer, "0", "1", "-1"]
-                              : undefined,
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#dce6ef] bg-[#f8fafc] text-xs font-bold text-[#23395b] outline-none"
-                    >
-                      <option value="multiple_choice">Selección Múltiple (4 opciones)</option>
-                      <option value="numeric">Numérica / Fracción exacta</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Prompt */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-[#64748b]">
-                      Enunciado de la Pregunta:
-                    </label>
-                    <span className="text-[11px] text-[#64748b]">
-                      Escribe texto natural o usa los atajos rápidos
+            return (
+              <div className="space-y-5">
+                {/* Symbolab Virtual Math Panel */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-[#23395b] flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-[#218653]" />
+                      Panel Matemático Estilo Symbolab (Libertad Total de Redacción)
                     </span>
-                  </div>
-
-                  {/* Math Toolbar for Prompt */}
-                  <div className="flex items-center gap-1.5 flex-wrap mb-2 p-1.5 rounded-xl bg-[#f1f5f9] border border-[#e2e8f0]">
-                    <span className="text-[10px] font-bold text-[#64748b] px-1 uppercase tracking-wider">
-                      Atajos:
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateCurrentQuestion({
-                          promptLatex:
-                            (currentQ.promptLatex || "") +
-                            " \\begin{pmatrix} 1 & 0 \\\\ 0 & 1 \\end{pmatrix} ",
-                        })
-                      }
-                      className="px-2 py-1 rounded-lg bg-white hover:bg-[#eef4fa] text-[11px] font-bold text-[#23395b] border border-[#dce6ef] shadow-xs"
-                      title="Insertar matriz 2x2"
-                    >
-                      + Matriz 2×2
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateCurrentQuestion({
-                          promptLatex:
-                            (currentQ.promptLatex || "") +
-                            " \\begin{pmatrix} x \\\\ y \\end{pmatrix} ",
-                        })
-                      }
-                      className="px-2 py-1 rounded-lg bg-white hover:bg-[#eef4fa] text-[11px] font-bold text-[#23395b] border border-[#dce6ef] shadow-xs"
-                      title="Insertar vector"
-                    >
-                      + Vector
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateCurrentQuestion({
-                          promptLatex:
-                            (currentQ.promptLatex || "") + " \\frac{a}{b} ",
-                        })
-                      }
-                      className="px-2 py-1 rounded-lg bg-white hover:bg-[#eef4fa] text-[11px] font-bold text-[#23395b] border border-[#dce6ef] shadow-xs"
-                      title="Insertar fracción"
-                    >
-                      + Fracción
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateCurrentQuestion({
-                          promptLatex:
-                            (currentQ.promptLatex || "") + " \\times ",
-                        })
-                      }
-                      className="px-2 py-1 rounded-lg bg-white hover:bg-[#eef4fa] text-[11px] font-bold text-[#23395b] border border-[#dce6ef] shadow-xs"
-                    >
-                      ×
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateCurrentQuestion({
-                          promptLatex:
-                            (currentQ.promptLatex || "") + " \\cdot ",
-                        })
-                      }
-                      className="px-2 py-1 rounded-lg bg-white hover:bg-[#eef4fa] text-[11px] font-bold text-[#23395b] border border-[#dce6ef] shadow-xs"
-                    >
-                      ·
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateCurrentQuestion({
-                          promptLatex:
-                            (currentQ.promptLatex || "") + "^{\\circ}",
-                        })
-                      }
-                      className="px-2 py-1 rounded-lg bg-white hover:bg-[#eef4fa] text-[11px] font-bold text-[#23395b] border border-[#dce6ef] shadow-xs"
-                    >
-                      °
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateCurrentQuestion({
-                          promptLatex:
-                            (currentQ.promptLatex || "") + " \\mathbb{R}^2 ",
-                        })
-                      }
-                      className="px-2 py-1 rounded-lg bg-white hover:bg-[#eef4fa] text-[11px] font-bold text-[#23395b] border border-[#dce6ef] shadow-xs"
-                    >
-                      ℝ²
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateCurrentQuestion({
-                          promptLatex:
-                            (currentQ.promptLatex || "") + " \\det(A) ",
-                        })
-                      }
-                      className="px-2 py-1 rounded-lg bg-white hover:bg-[#eef4fa] text-[11px] font-bold text-[#23395b] border border-[#dce6ef] shadow-xs"
-                    >
-                      det(A)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateCurrentQuestion({
-                          promptLatex:
-                            (currentQ.promptLatex || "") + " **texto** ",
-                        })
-                      }
-                      className="px-2 py-1 rounded-lg bg-white hover:bg-[#eef4fa] text-[11px] font-bold text-[#23395b] border border-[#dce6ef] shadow-xs"
-                    >
-                      Negrita
-                    </button>
-                  </div>
-
-                  <textarea
-                    rows={3}
-                    value={currentQ.promptLatex}
-                    onChange={(e) => updateCurrentQuestion({ promptLatex: e.target.value })}
-                    className="w-full p-3.5 rounded-xl border border-[#dce6ef] bg-[#f8fafc] text-sm text-[#23395b] outline-none"
-                    placeholder="Escribe el enunciado de la pregunta..."
-                  />
-                </div>
-
-                {/* Multiple Choice Options with Natural Visual Editors */}
-                {currentQ.questionType === "multiple_choice" && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-xs font-bold uppercase tracking-wider text-[#64748b]">
-                        Opciones de Respuesta (Escribe solo números en las matrices):
-                      </label>
-                      <span className="text-[11px] text-[#218653] font-semibold">
-                        Modo visual activo
-                      </span>
-                    </div>
-
-                    {(currentQ.optionsLatex || []).map((opt, optIdx) => {
-                      const letter = String.fromCharCode(65 + optIdx);
-                      const isCorrect = opt.trim() === currentQ.correctAnswer.trim();
-
-                      return (
-                        <VisualOptionEditor
-                          key={optIdx}
-                          letter={letter}
-                          value={opt}
-                          isCorrect={isCorrect}
-                          onMarkCorrect={() => updateCurrentQuestion({ correctAnswer: opt })}
-                          onChange={(newLatex) => {
-                            const newOptions = [...(currentQ.optionsLatex || [])];
-                            newOptions[optIdx] = newLatex;
-                            updateCurrentQuestion({
-                              optionsLatex: newOptions,
-                              ...(isCorrect ? { correctAnswer: newLatex } : {}),
-                            });
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Numeric Correct Answer */}
-                {currentQ.questionType === "numeric" && (
-                  <div className="p-4 rounded-2xl bg-[#e8f5e9]/50 border-2 border-[#218653] space-y-2">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-[#1a6e43]">
-                      Respuesta Numérica Correcta:
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="text"
-                        value={currentQ.correctAnswer}
-                        onChange={(e) => updateCurrentQuestion({ correctAnswer: e.target.value })}
-                        className="w-full max-w-xs px-4 py-2.5 rounded-xl border border-[#218653]/40 bg-white font-bold text-base text-[#1a6e43] outline-none shadow-xs"
-                        placeholder="Ej: 5, -2 o 3/4"
-                      />
-                      <div className="px-3 py-2 rounded-xl bg-white border border-[#218653]/30 text-sm font-bold text-[#1a6e43]">
-                        Vista: <MathRenderer latex={currentQ.correctAnswer} />
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-[#64748b]">Insertar símbolos en:</span>
+                      <div className="flex p-0.5 rounded-xl bg-[#e2ecf5] text-xs font-bold">
+                        <button
+                          type="button"
+                          onClick={() => setSymbolabTarget("prompt")}
+                          className={`px-3 py-1 rounded-lg transition-all ${
+                            symbolabTarget === "prompt"
+                              ? "bg-white text-[#23395b] shadow-xs"
+                              : "text-[#64748b] hover:text-[#23395b]"
+                          }`}
+                        >
+                          Enunciado
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSymbolabTarget("explanation")}
+                          className={`px-3 py-1 rounded-lg transition-all ${
+                            symbolabTarget === "explanation"
+                              ? "bg-white text-[#23395b] shadow-xs"
+                              : "text-[#64748b] hover:text-[#23395b]"
+                          }`}
+                        >
+                          Explicación
+                        </button>
                       </div>
                     </div>
-                    <p className="text-[11px] text-[#218653]">
-                      Escribe directamente el número, negativo o fracción.
-                    </p>
-                  </div>
-                )}
-
-                {/* Explanation */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-[#64748b]">
-                      Explicación y Justificación Paso a Paso:
-                    </label>
-                    <span className="text-[11px] text-[#64748b]">
-                      Guía de resolución para el solucionario
-                    </span>
                   </div>
 
-                  {/* Math Toolbar for Explanation */}
-                  <div className="flex items-center gap-1.5 flex-wrap mb-2 p-1.5 rounded-xl bg-[#f1f5f9] border border-[#e2e8f0]">
-                    <span className="text-[10px] font-bold text-[#64748b] px-1 uppercase tracking-wider">
-                      Atajos:
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
+                  <SymbolabPanel
+                    onInsertText={(insertedText) => {
+                      if (symbolabTarget === "prompt") {
                         updateCurrentQuestion({
-                          explanationLatex:
-                            (currentQ.explanationLatex || "") +
-                            " \\begin{pmatrix} 1 & 0 \\\\ 0 & 1 \\end{pmatrix} ",
-                        })
-                      }
-                      className="px-2 py-1 rounded-lg bg-white hover:bg-[#eef4fa] text-[11px] font-bold text-[#23395b] border border-[#dce6ef] shadow-xs"
-                      title="Insertar matriz 2x2"
-                    >
-                      + Matriz 2×2
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
+                          promptLatex: (currentQ.promptLatex || "") + insertedText,
+                        });
+                      } else {
                         updateCurrentQuestion({
-                          explanationLatex:
-                            (currentQ.explanationLatex || "") +
-                            " \\begin{pmatrix} x \\\\ y \\end{pmatrix} ",
-                        })
+                          explanationLatex: (currentQ.explanationLatex || "") + insertedText,
+                        });
                       }
-                      className="px-2 py-1 rounded-lg bg-white hover:bg-[#eef4fa] text-[11px] font-bold text-[#23395b] border border-[#dce6ef] shadow-xs"
-                      title="Insertar vector"
-                    >
-                      + Vector
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateCurrentQuestion({
-                          explanationLatex:
-                            (currentQ.explanationLatex || "") + " \\frac{a}{b} ",
-                        })
-                      }
-                      className="px-2 py-1 rounded-lg bg-white hover:bg-[#eef4fa] text-[11px] font-bold text-[#23395b] border border-[#dce6ef] shadow-xs"
-                      title="Insertar fracción"
-                    >
-                      + Fracción
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateCurrentQuestion({
-                          explanationLatex:
-                            (currentQ.explanationLatex || "") + " \\times ",
-                        })
-                      }
-                      className="px-2 py-1 rounded-lg bg-white hover:bg-[#eef4fa] text-[11px] font-bold text-[#23395b] border border-[#dce6ef] shadow-xs"
-                    >
-                      ×
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateCurrentQuestion({
-                          explanationLatex:
-                            (currentQ.explanationLatex || "") + " \\cdot ",
-                        })
-                      }
-                      className="px-2 py-1 rounded-lg bg-white hover:bg-[#eef4fa] text-[11px] font-bold text-[#23395b] border border-[#dce6ef] shadow-xs"
-                    >
-                      ·
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateCurrentQuestion({
-                          explanationLatex:
-                            (currentQ.explanationLatex || "") + " \\mathbb{R}^2 ",
-                        })
-                      }
-                      className="px-2 py-1 rounded-lg bg-white hover:bg-[#eef4fa] text-[11px] font-bold text-[#23395b] border border-[#dce6ef] shadow-xs"
-                    >
-                      ℝ²
-                    </button>
-                  </div>
-
-                  <textarea
-                    rows={3}
-                    value={currentQ.explanationLatex}
-                    onChange={(e) =>
-                      updateCurrentQuestion({ explanationLatex: e.target.value })
-                    }
-                    className="w-full p-3.5 rounded-xl border border-[#dce6ef] bg-[#f8fafc] text-sm text-[#23395b] outline-none"
-                    placeholder="Escribe la explicación matemática paso a paso..."
+                    }}
                   />
                 </div>
-              </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  {/* Left Column: Form Fields */}
+                  <div className="lg:col-span-7 space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-[#64748b] mb-1">
+                          Nivel de Dificultad
+                        </label>
+                        <select
+                          value={currentQ.level}
+                          onChange={(e) =>
+                            updateCurrentQuestion({ level: e.target.value as any })
+                          }
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#dce6ef] bg-[#f8fafc] text-xs font-bold text-[#23395b] outline-none"
+                        >
+                          <option value="basico">Básico (Preguntas 1-3)</option>
+                          <option value="intermedio">Intermedio (Preguntas 4-7)</option>
+                          <option value="avanzado">Avanzado (Preguntas 8-10)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-[#64748b] mb-1">
+                          Tipo de Respuesta
+                        </label>
+                        <select
+                          value={currentQ.questionType}
+                          onChange={(e) =>
+                            updateCurrentQuestion({
+                              questionType: e.target.value as any,
+                              optionsLatex:
+                                e.target.value === "multiple_choice"
+                                  ? currentQ.optionsLatex || [currentQ.correctAnswer, "0", "1", "-1"]
+                                  : undefined,
+                            })
+                          }
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#dce6ef] bg-[#f8fafc] text-xs font-bold text-[#23395b] outline-none"
+                        >
+                          <option value="multiple_choice">Selección Múltiple (4 opciones)</option>
+                          <option value="numeric">Numérica / Fracción exacta</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Prompt with Visual Matrix Grid Inspector */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between flex-wrap gap-1">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-[#64748b]">
+                          Enunciado de la Pregunta (Lenguaje Natural):
+                        </label>
+                        <span className="text-[11px] text-[#218653] font-semibold">
+                          Escribe texto natural sin pensar en LaTeX
+                        </span>
+                      </div>
+
+                      {/* Visual Matrix/Vector Inspector for Prompt */}
+                      {promptMatrices.length > 0 && (
+                        <div className="p-3.5 rounded-2xl bg-[#f0fdf4] border-2 border-[#86efac] space-y-2.5 shadow-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-black uppercase tracking-wider text-[#166534] flex items-center gap-1.5">
+                              <Sparkles className="w-4 h-4 text-[#218653]" />
+                              Matrices y Vectores del Enunciado (Edición Numérica Directa):
+                            </span>
+                            <span className="text-[11px] text-[#15803d] font-semibold">
+                              Escribe solo números en las casillas
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap gap-3 items-center">
+                            {promptMatrices.map((item) => (
+                              <div
+                                key={item.id}
+                                className="p-2.5 rounded-xl bg-white border border-[#bbf7d0] shadow-xs flex items-center gap-2"
+                              >
+                                <span className="font-mono font-bold text-xs text-[#166534] bg-[#dcfce7] px-2 py-1 rounded-md">
+                                  {item.name}
+                                </span>
+                                <span className="text-sm font-bold text-[#64748b]">=</span>
+
+                                {item.type === "matrix_2x2" && item.matrix && (
+                                  <div className="flex items-center">
+                                    <span className="text-3xl font-light text-[#64748b] select-none pl-0.5">⎛</span>
+                                    <div className="grid grid-cols-2 gap-1 p-0.5">
+                                      {(["a", "b", "c", "d"] as const).map((cell) => (
+                                        <input
+                                          key={cell}
+                                          type="text"
+                                          value={item.matrix![cell]}
+                                          onChange={(e) => {
+                                            const updated = { ...item.matrix!, [cell]: e.target.value };
+                                            const newRaw = buildMatrix2x2(updated.a, updated.b, updated.c, updated.d);
+                                            const newPrompt = replacePromptMatrix(currentQ.promptLatex, item.rawMatch, newRaw);
+                                            updateCurrentQuestion({ promptLatex: newPrompt });
+                                          }}
+                                          className="w-11 h-7 text-center font-bold text-xs bg-[#f8fafc] border border-[#cbd5e1] rounded-md text-[#23395b] focus:border-[#218653] outline-none"
+                                        />
+                                      ))}
+                                    </div>
+                                    <span className="text-3xl font-light text-[#64748b] select-none pr-0.5">⎞</span>
+                                  </div>
+                                )}
+
+                                {item.type === "vector_2d" && item.vector && (
+                                  <div className="flex items-center">
+                                    <span className="text-3xl font-light text-[#64748b] select-none pl-0.5">⎛</span>
+                                    <div className="grid grid-cols-1 gap-1 p-0.5">
+                                      {(["x", "y"] as const).map((cell) => (
+                                        <input
+                                          key={cell}
+                                          type="text"
+                                          value={item.vector![cell]}
+                                          onChange={(e) => {
+                                            const updated = { ...item.vector!, [cell]: e.target.value };
+                                            const newRaw = buildVector2(updated.x, updated.y);
+                                            const newPrompt = replacePromptMatrix(currentQ.promptLatex, item.rawMatch, newRaw);
+                                            updateCurrentQuestion({ promptLatex: newPrompt });
+                                          }}
+                                          className="w-11 h-7 text-center font-bold text-xs bg-[#f8fafc] border border-[#cbd5e1] rounded-md text-[#23395b] focus:border-[#218653] outline-none"
+                                        />
+                                      ))}
+                                    </div>
+                                    <span className="text-3xl font-light text-[#64748b] select-none pr-0.5">⎞</span>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <textarea
+                        rows={3}
+                        value={currentQ.promptLatex}
+                        onChange={(e) => updateCurrentQuestion({ promptLatex: cleanLatexToNaturalText(e.target.value) })}
+                        className="w-full p-3.5 rounded-xl border border-[#dce6ef] bg-[#f8fafc] text-sm text-[#23395b] outline-none focus:border-[#218653]"
+                        placeholder="Escribe el enunciado de la pregunta en lenguaje natural..."
+                      />
+                    </div>
+
+                    {/* Multiple Choice Options with Natural Visual Editors */}
+                    {currentQ.questionType === "multiple_choice" && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-xs font-bold uppercase tracking-wider text-[#64748b]">
+                            Opciones de Respuesta (Escribe solo números en las matrices):
+                          </label>
+                          <span className="text-[11px] text-[#218653] font-semibold">
+                            Modo visual interactivo activo
+                          </span>
+                        </div>
+
+                        {(currentQ.optionsLatex || []).map((opt, optIdx) => {
+                          const letter = String.fromCharCode(65 + optIdx);
+                          const isCorrect = opt.trim() === currentQ.correctAnswer.trim();
+
+                          return (
+                            <VisualOptionEditor
+                              key={optIdx}
+                              letter={letter}
+                              value={opt}
+                              isCorrect={isCorrect}
+                              onMarkCorrect={() => updateCurrentQuestion({ correctAnswer: opt })}
+                              onChange={(newLatex) => {
+                                const newOptions = [...(currentQ.optionsLatex || [])];
+                                newOptions[optIdx] = newLatex;
+                                updateCurrentQuestion({
+                                  optionsLatex: newOptions,
+                                  ...(isCorrect ? { correctAnswer: newLatex } : {}),
+                                });
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Numeric Correct Answer */}
+                    {currentQ.questionType === "numeric" && (
+                      <div className="p-4 rounded-2xl bg-[#e8f5e9]/50 border-2 border-[#218653] space-y-2">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-[#1a6e43]">
+                          Respuesta Numérica Correcta:
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="text"
+                            value={currentQ.correctAnswer}
+                            onChange={(e) => updateCurrentQuestion({ correctAnswer: e.target.value })}
+                            className="w-full max-w-xs px-4 py-2.5 rounded-xl border border-[#218653]/40 bg-white font-bold text-base text-[#1a6e43] outline-none shadow-xs"
+                            placeholder="Ej: 5, -2 o 3/4"
+                          />
+                          <div className="px-3 py-2 rounded-xl bg-white border border-[#218653]/30 text-sm font-bold text-[#1a6e43]">
+                            Vista: <MathRenderer latex={currentQ.correctAnswer} />
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-[#218653]">
+                          Escribe directamente el número, negativo o fracción.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Explanation */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between flex-wrap gap-1">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-[#64748b]">
+                          Explicación y Justificación Paso a Paso:
+                        </label>
+                        <span className="text-[11px] text-[#64748b]">
+                          Usa el panel de Symbolab arriba para insertar fórmulas
+                        </span>
+                      </div>
+
+                      <textarea
+                        rows={3}
+                        value={currentQ.explanationLatex}
+                        onChange={(e) =>
+                          updateCurrentQuestion({ explanationLatex: cleanLatexToNaturalText(e.target.value) })
+                        }
+                        className="w-full p-3.5 rounded-xl border border-[#dce6ef] bg-[#f8fafc] text-sm text-[#23395b] outline-none focus:border-[#218653]"
+                        placeholder="Escribe la explicación matemática paso a paso..."
+                      />
+                    </div>
+                  </div>
 
               {/* Right Column: Live KaTeX Preview */}
               <div className="lg:col-span-5 bg-[#f8fafc] border-2 border-[#dce6ef] rounded-2xl p-4 sm:p-5 flex flex-col gap-4">
@@ -1131,9 +1076,11 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        );
+      })()}
+    </div>
+  )}
 
       {/* TAB 5: CHARTS & DIFFICULTY BY QUESTION */}
       {activeTab === "charts" && (

@@ -165,10 +165,10 @@ export function generateQ2(): QuestionData {
     questionIndex: 1,
     level: "basico",
     questionType: "multiple_choice",
-    promptLatex: `Calcula el producto de la matriz por el vector: \\\\[6pt] $$A = ${M.toLatex()}, \\quad v = ${v.toLatex()}$$ \\\\[6pt] ¿Cuál es el vector resultante $A \\cdot v$?`,
+    promptLatex: `Calcula el producto de la matriz por el vector:\n\n$$A = ${M.toLatex()}, \\quad v = ${v.toLatex()}$$\n\n¿Cuál es el vector resultante $A \\cdot v$?`,
     optionsLatex: options,
     correctAnswer: correctV.toLatex(),
-    explanationLatex: `Multiplicamos fila por columna: \\\\[4pt] $x' = (${a})(${vx}) + (${b})(${vy}) = ${correctV.x.toString()}$ \\\\[4pt] $y' = (${c})(${vx}) + (${d})(${vy}) = ${correctV.y.toString()}$ \\\\[4pt] Por tanto, $A \\cdot v = ${correctV.toLatex()}$.`,
+    explanationLatex: `Multiplicamos fila por columna:\n\n$x' = (${a})(${vx}) + (${b})(${vy}) = ${correctV.x.toString()}$\n\n$y' = (${c})(${vx}) + (${d})(${vy}) = ${correctV.y.toString()}$\n\nPor tanto, $A \\cdot v = ${correctV.toLatex()}$.`,
   };
 }
 
@@ -192,7 +192,7 @@ export function generateQ3(): QuestionData {
       questionIndex: 2,
       level: "basico",
       questionType: "numeric",
-      promptLatex: `Al reflejar el vector $v = ${v.toLatex()}$ respecto al **eje ${axis}**, se obtiene el vector $v' = \\begin{pmatrix} x' \\\\ y' \\end{pmatrix}$. \\\\[6pt] **Calcula el valor numérico de la componente $${askComponent}'$:**`,
+      promptLatex: `Al reflejar el vector $v = ${v.toLatex()}$ respecto al **eje ${axis}**, se obtiene el vector $v' = \\begin{pmatrix} x' \\\\ y' \\end{pmatrix}$.\n\n**Calcula el valor numérico de la componente $${askComponent}'$:**`,
       correctAnswer: answer,
       explanationLatex: axis === "X"
         ? `La reflexión respecto al eje X produce $v' = \\begin{pmatrix} ${vx} \\\\ -(${vy}) \\end{pmatrix} = ${res.toLatex()}$. Por tanto, $${askComponent}' = ${answer}$.`
@@ -208,7 +208,7 @@ export function generateQ3(): QuestionData {
       questionIndex: 2,
       level: "basico",
       questionType: "numeric",
-      promptLatex: `Si se aplica un escalamiento con factor $k = ${k}$ al vector $v = ${v.toLatex()}$, se obtiene $v' = ${k}v$. \\\\[6pt] **Calcula el valor numérico de la componente $${askComponent}'$:**`,
+      promptLatex: `Si se aplica un escalamiento con factor $k = ${k}$ al vector $v = ${v.toLatex()}$, se obtiene $v' = ${k}v$.\n\n**Calcula el valor numérico de la componente $${askComponent}'$:**`,
       correctAnswer: answer,
       explanationLatex: `El vector resultante es $v' = ${k} \\cdot ${v.toLatex()} = ${res.toLatex()}$. La componente $${askComponent}'$ es $${answer}$.`,
     };
@@ -249,10 +249,10 @@ export function generateQ4(): QuestionData {
     questionIndex: 3,
     level: "intermedio",
     questionType: "multiple_choice",
-    promptLatex: `Se aplica un **escalamiento no uniforme** con factores $s_x = ${sx}$ y $s_y = ${sy}$ mediante la matriz: \\\\[4pt] $$S = ${S.toLatex()}$$ \\\\[4pt] al vector $v = ${v.toLatex()}$. ¿Cuál es el vector resultante?`,
+    promptLatex: `Se aplica un **escalamiento no uniforme** con factores $s_x = ${sx}$ y $s_y = ${sy}$ mediante la matriz:\n\n$$S = ${S.toLatex()}$$\n\nal vector $v = ${v.toLatex()}$. ¿Cuál es el vector resultante?`,
     optionsLatex: options,
     correctAnswer: res.toLatex(),
-    explanationLatex: `Multiplicamos la matriz de escala por el vector: \\\\[4pt] $S \\cdot v = \\begin{pmatrix} (${sx})(${vx}) \\\\ (${sy})(${vy}) \\end{pmatrix} = ${res.toLatex()}$.`,
+    explanationLatex: `Multiplicamos la matriz de escala por el vector:\n\n$S \\cdot v = \\begin{pmatrix} (${sx})(${vx}) \\\\ (${sy})(${vy}) \\end{pmatrix} = ${res.toLatex()}$.`,
   };
 }
 
@@ -290,7 +290,7 @@ export function generateQ5(): QuestionData {
     promptLatex: `Determina la imagen del vector $v = ${v.toLatex()}$ bajo una **rotación de $${choice.deg}$** alrededor del origen:`,
     optionsLatex: options,
     correctAnswer: res.toLatex(),
-    explanationLatex: `La matriz de rotación para $${choice.deg}$ es $R = ${choice.mat.toLatex()}$. \\\\[4pt] Al multiplicar $R \\cdot v = ${res.toLatex()}$.`,
+    explanationLatex: `La matriz de rotación para $${choice.deg}$ es $R = ${choice.mat.toLatex()}$.\n\nAl multiplicar $R \\cdot v = ${res.toLatex()}$.`,
   };
 }
 
@@ -310,9 +310,9 @@ export function generateQ6(): QuestionData {
     questionIndex: 5,
     level: "intermedio",
     questionType: "numeric",
-    promptLatex: `Dada la matriz de transformación: \\\\[6pt] $$A = ${M.toLatex()}$$ \\\\[6pt] **Calcula el valor numérico del determinante $\\det(A)$:**`,
+    promptLatex: `Dada la matriz de transformación:\n\n$$A = ${M.toLatex()}$$\n\n**Calcula el valor numérico del determinante $\\det(A)$:**`,
     correctAnswer: det.toString(),
-    explanationLatex: `El determinante de una matriz $2 \\times 2$ es $ad - bc$: \\\\[4pt] $\\det(A) = (${a})(${d}) - (${b})(${c}) = ${a * d} - (${b * c}) = ${det.toString()}$.`,
+    explanationLatex: `El determinante de una matriz $2 \\times 2$ es $ad - bc$:\n\n$\\det(A) = (${a})(${d}) - (${b})(${c}) = ${a * d} - (${b * c}) = ${det.toString()}$.`,
   };
 }
 
@@ -338,9 +338,9 @@ export function generateQ7(): QuestionData {
     questionIndex: 6,
     level: "intermedio",
     questionType: "numeric",
-    promptLatex: `Sea $T: \\mathbb{R}^2 \\to \\mathbb{R}^2$ la transformación lineal con: \\\\[4pt] $$A = ${M.toLatex()}, \\quad v = ${v.toLatex()}$$ \\\\[4pt] Si $T(v) = \\begin{pmatrix} x' \\\\ y' \\end{pmatrix}$, **ingresa el valor numérico de la componente $${askComp}'$:**`,
+    promptLatex: `Sea $T: \\mathbb{R}^2 \\to \\mathbb{R}^2$ la transformación lineal con:\n\n$$A = ${M.toLatex()}, \\quad v = ${v.toLatex()}$$\n\nSi $T(v) = \\begin{pmatrix} x' \\\\ y' \\end{pmatrix}$, **ingresa el valor numérico de la componente $${askComp}'$:**`,
     correctAnswer: answer,
-    explanationLatex: `Calculamos $T(v) = ${M.toLatex()} ${v.toLatex()} = \\begin{pmatrix} (${a})(${vx}) + (${b})(${vy}) \\\\ (${c})(${vx}) + (${d})(${vy}) \\end{pmatrix} = ${res.toLatex()}$. \\\\[4pt] La componente $${askComp}'$ solicitada es $${answer}$.`,
+    explanationLatex: `Calculamos $T(v) = ${M.toLatex()} ${v.toLatex()} = \\begin{pmatrix} (${a})(${vx}) + (${b})(${vy}) \\\\ (${c})(${vx}) + (${d})(${vy}) \\end{pmatrix} = ${res.toLatex()}$.\n\nLa componente $${askComp}'$ solicitada es $${answer}$.`,
   };
 }
 
@@ -382,10 +382,10 @@ export function generateQ8(): QuestionData {
     questionIndex: 7,
     level: "avanzado",
     questionType: "multiple_choice",
-    promptLatex: `Sean dos transformaciones lineales con matrices asociadas: \\\\[4pt] $$A = ${A.toLatex()} \\quad \\text{y} \\quad B = ${B.toLatex()}$$ \\\\[4pt] ¿Cuál es la matriz estándar de la composición $(T_2 \\circ T_1)$ que aplica **primero $T_1$ y luego $T_2$**?`,
+    promptLatex: `Sean dos transformaciones lineales con matrices asociadas:\n\n$$A = ${A.toLatex()} \\quad \\text{y} \\quad B = ${B.toLatex()}$$\n\n¿Cuál es la matriz estándar de la composición $(T_2 \\circ T_1)$ que aplica **primero $T_1$ y luego $T_2$**?`,
     optionsLatex: options,
     correctAnswer: correct.toLatex(),
-    explanationLatex: `Cuando se aplica primero $T_1$ y luego $T_2$, la fórmula es $(T_2 \\circ T_1)(v) = T_2(T_1(v)) = B(Av) = (B \\cdot A)v$. \\\\[4pt] Por tanto, la matriz es $B \\cdot A = ${B.toLatex()} ${A.toLatex()} = ${correct.toLatex()}$. Recuerda que el producto de matrices no es conmutativo: $B \\cdot A \\neq A \\cdot B$.`,
+    explanationLatex: `Cuando se aplica primero $T_1$ y luego $T_2$, la fórmula es $(T_2 \\circ T_1)(v) = T_2(T_1(v)) = B(Av) = (B \\cdot A)v$.\n\nPor tanto, la matriz es $B \\cdot A = ${B.toLatex()} ${A.toLatex()} = ${correct.toLatex()}$. Recuerda que el producto de matrices no es conmutativo: $B \\cdot A \\neq A \\cdot B$.`,
   };
 }
 
@@ -421,10 +421,10 @@ export function generateQ9(): QuestionData {
     questionIndex: 8,
     level: "avanzado",
     questionType: "multiple_choice",
-    promptLatex: `Una transformación lineal $T: \\mathbb{R}^2 \\to \\mathbb{R}^2$ envía los vectores de la base canónica a: \\\\[4pt] $$T(e_1) = ${T_e1.toLatex()}, \\quad T(e_2) = ${T_e2.toLatex()}$$ \\\\[4pt] ¿Cuál es la matriz estándar de la transformación $T$?`,
+    promptLatex: `Una transformación lineal $T: \\mathbb{R}^2 \\to \\mathbb{R}^2$ envía los vectores de la base canónica a:\n\n$$T(e_1) = ${T_e1.toLatex()}, \\quad T(e_2) = ${T_e2.toLatex()}$$\n\n¿Cuál es la matriz estándar de la transformación $T$?`,
     optionsLatex: options,
     correctAnswer: correct.toLatex(),
-    explanationLatex: `Por el Teorema Fundamental de Transformaciones Lineales, las columnas de la matriz estándar $A$ son las imágenes de los vectores canónicos: \\\\[4pt] $A = \\begin{pmatrix} T(e_1) & T(e_2) \\end{pmatrix} = \\begin{pmatrix} ${u1} & ${v1} \\\\ ${u2} & ${v2} \\end{pmatrix} = ${correct.toLatex()}$.`,
+    explanationLatex: `Por el Teorema Fundamental de Transformaciones Lineales, las columnas de la matriz estándar $A$ son las imágenes de los vectores canónicos:\n\n$A = \\begin{pmatrix} T(e_1) & T(e_2) \\end{pmatrix} = \\begin{pmatrix} ${u1} & ${v1} \\\\ ${u2} & ${v2} \\end{pmatrix} = ${correct.toLatex()}$.`,
   };
 }
 
@@ -474,9 +474,9 @@ export function generateQ10(): QuestionData {
     questionIndex: 9,
     level: "avanzado",
     questionType: "multiple_choice",
-    promptLatex: `Se aplica sucesivamente al vector $v = ${v.toLatex()}$ primero ${desc1}, y a continuación ${desc2}. \\\\[4pt] ¿Cuál es el vector resultante final?`,
+    promptLatex: `Se aplica sucesivamente al vector $v = ${v.toLatex()}$ primero ${desc1}, y a continuación ${desc2}.\n\n¿Cuál es el vector resultante final?`,
     optionsLatex: options,
     correctAnswer: correctV.toLatex(),
-    explanationLatex: `La matriz de la primera transformación es $A = ${T1.toLatex()}$ y la de la segunda es $B = ${T2.toLatex()}$. \\\\[4pt] La matriz combinada es $M = B \\cdot A = ${composedMatrix.toLatex()}$. \\\\[4pt] Multiplicando por el vector: $M \\cdot v = ${correctV.toLatex()}$.`,
+    explanationLatex: `La matriz de la primera transformación es $A = ${T1.toLatex()}$ y la de la segunda es $B = ${T2.toLatex()}$.\n\nLa matriz combinada es $M = B \\cdot A = ${composedMatrix.toLatex()}$.\n\nMultiplicando por el vector: $M \\cdot v = ${correctV.toLatex()}$.`,
   };
 }

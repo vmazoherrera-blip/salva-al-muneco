@@ -18,6 +18,15 @@ export interface ParsedVector2 {
   y: string;
 }
 
+export interface ExtractedPromptItem {
+  id: string;
+  name: string;
+  type: "matrix_2x2" | "vector_2d";
+  matrix?: ParsedMatrix2x2;
+  vector?: ParsedVector2;
+  rawMatch: string;
+}
+
 /**
  * Attempts to parse a 2x2 matrix from LaTeX syntax:
  * \begin{pmatrix} a & b \\ c & d \end{pmatrix}
@@ -85,4 +94,82 @@ export function detectMathFormat(latex: string): MathElementFormat {
   if (parseMatrix2x2(latex) !== null) return "matrix_2x2";
   if (parseVector2(latex) !== null) return "vector_2d";
   return "scalar_text";
+}
+
+/**
+ * Cleans unwanted LaTeX formatting artifacts (e.g. \\[6pt], \\[4pt]) into natural paragraphs.
+ */
+export function cleanLatexToNaturalText(latex: string): string {
+  if (!latex) return "";
+  return latex
+    .replace(/\\\\\[\d+pt\]/g, "\n\n")
+    .replace(/\\\\\[\d+px\]/g, "\n\n")
+    .replace(/\\\[\d+pt\]/g, "\n\n")
+    .replace(/\\\[\d+px\]/g, "\n\n")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
+/**
+ * Extracts all 2x2 matrices and 2D vectors embedded in a prompt string.
+ * This powers the visual matrix inspector so teachers can visually inspect
+ * and edit numbers directly without seeing LaTeX markup.
+ */
+export function extractPromptMatrices(prompt: string): ExtractedPromptItem[] {
+  if (!prompt) return [];
+  const results: ExtractedPromptItem[] = [];
+  const matrixRegex = /\\begin\{(?:pmatrix|bmatrix|matrix)\}\s*([\s\S]*?)\s*\\end\{(?:pmatrix|bmatrix|matrix)\}/gi;
+
+  let match: RegExpExecArray | null;
+  let counter = 1;
+
+  while ((match = matrixRegex.exec(prompt)) !== null) {
+    const rawMatch = match[0];
+    const matchIndex = match.index;
+    const inner = match[1];
+
+    // Detect preceding name (e.g., "A = ", "v = ", "S = ")
+    const beforeText = prompt.slice(Math.max(0, matchIndex - 35), matchIndex);
+    const nameMatch = beforeText.match(/([A-Za-z0-9_()]+)\s*=\s*$/);
+    const detectedName = nameMatch ? nameMatch[1].trim() : `M${counter}`;
+
+    if (inner.includes("&")) {
+      const parsed = parseMatrix2x2(rawMatch);
+      if (parsed) {
+        results.push({
+          id: `matrix_${matchIndex}_${counter}`,
+          name: detectedName,
+          type: "matrix_2x2",
+          matrix: parsed,
+          rawMatch,
+        });
+        counter++;
+      }
+    } else {
+      const parsed = parseVector2(rawMatch);
+      if (parsed) {
+        results.push({
+          id: `vector_${matchIndex}_${counter}`,
+          name: detectedName,
+          type: "vector_2d",
+          vector: parsed,
+          rawMatch,
+        });
+        counter++;
+      }
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Updates a matrix or vector inside a prompt string with new values.
+ */
+export function replacePromptMatrix(
+  prompt: string,
+  targetRaw: string,
+  newRaw: string
+): string {
+  if (!prompt || !targetRaw) return prompt;
+  return prompt.replace(targetRaw, newRaw);
 }
