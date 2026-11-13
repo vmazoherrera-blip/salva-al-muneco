@@ -4,7 +4,7 @@ import { startGameRoom } from "@/lib/game/game-store";
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
-    const { code, hostToken } = body;
+    const { code, hostToken, customQuestions } = body;
 
     if (!code || !hostToken) {
       return NextResponse.json(
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await startGameRoom(code, hostToken);
+    const result = await startGameRoom(code, hostToken, customQuestions);
 
     if (result.error) {
       return NextResponse.json({ success: false, error: result.error }, { status: 400 });

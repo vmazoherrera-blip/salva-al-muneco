@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { joinGameRoom } from "@/lib/game/game-store";
+import { containsProfanity } from "@/lib/profanity";
 
 export async function POST(request: Request) {
   try {
@@ -16,6 +17,16 @@ export async function POST(request: Request) {
     if (!nickname || typeof nickname !== "string" || !nickname.trim()) {
       return NextResponse.json(
         { success: false, error: "El apodo es obligatorio" },
+        { status: 400 }
+      );
+    }
+
+    if (containsProfanity(nickname)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "El apodo contiene palabras inapropiadas o no permitidas. Por favor elige otro nombre.",
+        },
         { status: 400 }
       );
     }

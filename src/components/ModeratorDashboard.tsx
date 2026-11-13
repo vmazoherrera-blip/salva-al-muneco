@@ -1,31 +1,32 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Room,
-  Player,
   LeaderboardEntry,
   RoomEvent,
   ModeratorStats,
 } from "@/lib/supabase/types";
+import { QuestionData } from "@/lib/math-engine/templates";
+import { MathRenderer } from "./MathRenderer";
 import {
   Users,
   Activity,
   BarChart3,
   CheckCircle2,
   XCircle,
-  AlertTriangle,
   Play,
   StopCircle,
   UserX,
   Search,
-  Sparkles,
-  TrendingUp,
-  Clock,
   Radio,
-  LogIn,
-  LogOut,
   RefreshCw,
+  BookOpen,
+  Edit3,
+  Shuffle,
+  Save,
+  Check,
+  Sparkles,
 } from "lucide-react";
 
 interface ModeratorDashboardProps {
@@ -33,9 +34,11 @@ interface ModeratorDashboardProps {
   leaderboard: LeaderboardEntry[];
   events: RoomEvent[];
   stats?: ModeratorStats;
+  masterQuestions?: QuestionData[];
   hostToken: string;
   onRefresh: () => void;
   onStartGame?: () => void;
+  onQuestionsUpdated?: (questions: QuestionData[]) => void;
 }
 
 export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
@@ -43,15 +46,30 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
   leaderboard,
   events,
   stats,
+  masterQuestions = [],
   hostToken,
   onRefresh,
   onStartGame,
+  onQuestionsUpdated,
 }) => {
   // Navigation tabs
-  const [activeTab, setActiveTab] = useState<"live_feed" | "students" | "charts">("live_feed");
+  const [activeTab, setActiveTab] = useState<
+    "live_feed" | "students" | "charts" | "solutions" | "customizer"
+  >("live_feed");
   const [eventFilter, setEventFilter] = useState<string>("all");
   const [searchStudent, setSearchStudent] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Question editing state
+  const [localQuestions, setLocalQuestions] = useState<QuestionData[]>(masterQuestions);
+  const [selectedQIndex, setSelectedQIndex] = useState<number>(0);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    if (masterQuestions && masterQuestions.length > 0) {
+      setLocalQuestions(masterQuestions);
+    }
+  }, [masterQuestions]);
 
   // Manage room action (kick or finish)
   const handleRoomAction = async (action: "kick" | "finish", targetPlayerId?: string) => {
@@ -87,6 +105,79 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
     }
   };
 
+  // Regenerate random questions from server
+  const handleRegenerateQuestions = async () => {
+    if (!confirm("¿Deseas generar un nuevo conjunto de 10 preguntas aleatorias de transformaciones lineales?")) {
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const res = await fetch("/api/rooms/questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: room.code,
+          hostToken,
+          action: "regenerate",
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.questions) {
+        setLocalQuestions(data.questions);
+        if (onQuestionsUpdated) onQuestionsUpdated(data.questions);
+        alert("¡Preguntas aleatorias generadas exitosamente!");
+        onRefresh();
+      } else {
+        alert(data.error || "Error al regenerar preguntas");
+      }
+    } catch (e: any) {
+      alert(e.message || "Error al comunicar con el servidor");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Save custom edited questions
+  const handleSaveCustomQuestions = async () => {
+    setActionLoading(true);
+    try {
+      const res = await fetch("/api/rooms/questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: room.code,
+          hostToken,
+          action: "set",
+          questions: localQuestions,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+        if (onQuestionsUpdated) onQuestionsUpdated(localQuestions);
+        onRefresh();
+      } else {
+        alert(data.error || "Error al guardar preguntas personalizadas");
+      }
+    } catch (e: any) {
+      alert(e.message || "Error al guardar preguntas");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Update a field in the currently selected question
+  const updateCurrentQuestion = (patch: Partial<QuestionData>) => {
+    setLocalQuestions((prev) => {
+      const copy = [...prev];
+      if (copy[selectedQIndex]) {
+        copy[selectedQIndex] = { ...copy[selectedQIndex], ...patch };
+      }
+      return copy;
+    });
+  };
+
   // Filter events
   const filteredEvents = events.filter((ev) => {
     if (eventFilter === "answers_correct") return ev.type === "answer_correct" || ev.type === "saved";
@@ -99,6 +190,8 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
   const filteredStudents = leaderboard.filter((p) =>
     p.nickname.toLowerCase().includes(searchStudent.toLowerCase())
   );
+
+  const currentQ = localQuestions[selectedQIndex] || localQuestions[0];
 
   return (
     <div className="w-full flex flex-col gap-6 animate-fade-in text-[#23395b]">
@@ -131,15 +224,37 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
             <RefreshCw className="w-4 h-4" />
           </button>
 
-          {room.status === "waiting" && onStartGame && (
-            <button
-              onClick={onStartGame}
-              disabled={actionLoading}
-              className="px-4 py-2.5 rounded-xl bg-[#218653] hover:bg-[#1a6e43] text-white text-xs sm:text-sm font-bold shadow-md transition-all active:scale-95 flex items-center gap-2"
-            >
-              <Play className="w-4 h-4 fill-current" />
-              Iniciar Partida
-            </button>
+          {room.status === "waiting" && (
+            <>
+              <button
+                onClick={handleRegenerateQuestions}
+                disabled={actionLoading}
+                className="px-3.5 py-2.5 rounded-xl border border-[#dce6ef] bg-[#f8fafc] hover:bg-[#eef4fa] text-[#23395b] text-xs sm:text-sm font-bold shadow-xs transition-all flex items-center gap-2"
+                title="Generar 10 nuevas preguntas aleatorias"
+              >
+                <Shuffle className="w-4 h-4 text-[#218653]" />
+                Aleatorias
+              </button>
+
+              <button
+                onClick={() => setActiveTab("customizer")}
+                className="px-3.5 py-2.5 rounded-xl border border-[#23395b]/20 bg-white hover:bg-[#eef4fa] text-[#23395b] text-xs sm:text-sm font-bold shadow-xs transition-all flex items-center gap-2"
+              >
+                <Edit3 className="w-4 h-4 text-[#23395b]" />
+                Personalizar
+              </button>
+
+              {onStartGame && (
+                <button
+                  onClick={onStartGame}
+                  disabled={actionLoading}
+                  className="px-4 py-2.5 rounded-xl bg-[#218653] hover:bg-[#1a6e43] text-white text-xs sm:text-sm font-bold shadow-md transition-all active:scale-95 flex items-center gap-2"
+                >
+                  <Play className="w-4 h-4 fill-current" />
+                  Iniciar Partida
+                </button>
+              )}
+            </>
           )}
 
           {room.status === "playing" && (
@@ -199,17 +314,17 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
       </div>
 
       {/* Navigation Sub-Tabs */}
-      <div className="flex border-b border-[#dce6ef] gap-2">
+      <div className="flex border-b border-[#dce6ef] gap-2 overflow-x-auto pb-1">
         <button
           onClick={() => setActiveTab("live_feed")}
-          className={`pb-3 px-4 font-bold text-sm flex items-center gap-2 border-b-2 transition-all ${
+          className={`pb-3 px-4 font-bold text-sm flex items-center gap-2 border-b-2 whitespace-nowrap transition-all ${
             activeTab === "live_feed"
               ? "border-[#23395b] text-[#23395b]"
               : "border-transparent text-[#64748b] hover:text-[#23395b]"
           }`}
         >
           <Activity className="w-4 h-4 text-[#218653]" />
-          Registro en Vivo (Entradas, Aciertos y Fallos)
+          Registro en Vivo
           <span className="px-2 py-0.5 rounded-full bg-[#eef4fa] text-xs font-mono text-[#23395b]">
             {events.length}
           </span>
@@ -217,186 +332,185 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
 
         <button
           onClick={() => setActiveTab("students")}
-          className={`pb-3 px-4 font-bold text-sm flex items-center gap-2 border-b-2 transition-all ${
+          className={`pb-3 px-4 font-bold text-sm flex items-center gap-2 border-b-2 whitespace-nowrap transition-all ${
             activeTab === "students"
               ? "border-[#23395b] text-[#23395b]"
               : "border-transparent text-[#64748b] hover:text-[#23395b]"
           }`}
         >
           <Users className="w-4 h-4 text-[#23395b]" />
-          Alumnos en la Sala ({leaderboard.length})
+          Alumnos ({leaderboard.length})
         </button>
 
         <button
-          onClick={() => setActiveTab("charts")}
-          className={`pb-3 px-4 font-bold text-sm flex items-center gap-2 border-b-2 transition-all ${
-            activeTab === "charts"
+          onClick={() => setActiveTab("solutions")}
+          className={`pb-3 px-4 font-bold text-sm flex items-center gap-2 border-b-2 whitespace-nowrap transition-all ${
+            activeTab === "solutions"
+              ? "border-[#218653] text-[#218653]"
+              : "border-transparent text-[#64748b] hover:text-[#218653]"
+          }`}
+        >
+          <BookOpen className="w-4 h-4 text-[#218653]" />
+          Solucionario y Respuestas (10)
+        </button>
+
+        <button
+          onClick={() => setActiveTab("customizer")}
+          className={`pb-3 px-4 font-bold text-sm flex items-center gap-2 border-b-2 whitespace-nowrap transition-all ${
+            activeTab === "customizer"
               ? "border-[#23395b] text-[#23395b]"
               : "border-transparent text-[#64748b] hover:text-[#23395b]"
           }`}
         >
+          <Edit3 className="w-4 h-4 text-[#23395b]" />
+          Diseñador de Preguntas
+        </button>
+
+        <button
+          onClick={() => setActiveTab("charts")}
+          className={`pb-3 px-4 font-bold text-sm flex items-center gap-2 border-b-2 whitespace-nowrap transition-all ${
+            activeTab === "charts"
+              ? "border-[#f59e0b] text-[#d97706]"
+              : "border-transparent text-[#64748b] hover:text-[#f59e0b]"
+          }`}
+        >
           <BarChart3 className="w-4 h-4 text-[#f59e0b]" />
-          Gráficas de Rendimiento por Pregunta
+          Gráficas de Rendimiento
         </button>
       </div>
 
-      {/* TAB 1: LIVE FEED (WHO ENTERS, WHO EXITS, WHO ANSWERS CORRECT/WRONG) */}
+      {/* TAB 1: LIVE FEED */}
       {activeTab === "live_feed" && (
         <div className="bg-[#ffffff] border-2 border-[#dce6ef] rounded-3xl p-5 sm:p-6 shadow-sm">
-          {/* Filters */}
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-4 border-b border-[#e2ecf5]">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#64748b]">Filtrar por:</span>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  { id: "all", label: "Todos los eventos" },
-                  { id: "answers_correct", label: "Solo Aciertos" },
-                  { id: "answers_wrong", label: "Solo Fallos" },
-                  { id: "connections", label: "Entradas / Salidas" },
-                ].map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => setEventFilter(f.id)}
-                    className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
-                      eventFilter === f.id
-                        ? "bg-[#23395b] text-white shadow-xs"
-                        : "bg-[#eef4fa] text-[#64748b] hover:bg-[#e2ecf5]"
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#64748b]">
+              Filtrar eventos por categoría
+            </span>
+            <div className="flex gap-1.5 flex-wrap">
+              {[
+                { id: "all", label: "Todos los eventos" },
+                { id: "answers_correct", label: "Aciertos y Salvados" },
+                { id: "answers_wrong", label: "Fallos y Ahorcados" },
+                { id: "connections", label: "Entradas / Salidas" },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setEventFilter(f.id)}
+                  className={`px-3 py-1 text-xs font-bold rounded-xl transition-all ${
+                    eventFilter === f.id
+                      ? "bg-[#23395b] text-white"
+                      : "bg-[#f8fafc] text-[#64748b] hover:bg-[#eef4fa]"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
-
-            <span className="text-xs text-[#94a3b8] font-medium">Actualización automática cada 2s</span>
           </div>
 
-          {/* Event Stream */}
-          {filteredEvents.length === 0 ? (
-            <div className="py-12 text-center text-xs text-[#94a3b8]">
-              No hay eventos registrados en este filtro todavía.
-            </div>
-          ) : (
-            <div className="space-y-2.5 max-h-[460px] overflow-y-auto pr-1">
-              {filteredEvents.map((ev) => {
-                const timeStr = new Date(ev.timestamp).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                });
-
-                let badgeColor = "bg-[#f1f5f9] text-[#475569] border-[#cbd5e1]";
-                let icon = <Activity className="w-4 h-4" />;
-
-                if (ev.type === "answer_correct") {
-                  badgeColor = "bg-[#e8f7ee] text-[#218653] border-[#a3e0be]";
-                  icon = <CheckCircle2 className="w-4 h-4 text-[#218653]" />;
-                } else if (ev.type === "saved") {
-                  badgeColor = "bg-[#e8f7ee] text-[#218653] border-[#218653]";
-                  icon = <Sparkles className="w-4 h-4 text-[#218653]" />;
-                } else if (ev.type === "answer_wrong") {
-                  badgeColor = "bg-[#fde8ea] text-[#c43d4d] border-[#f5b3b9]";
-                  icon = <XCircle className="w-4 h-4 text-[#c43d4d]" />;
-                } else if (ev.type === "eliminated") {
-                  badgeColor = "bg-[#7f1d1d] text-white border-black";
-                  icon = <AlertTriangle className="w-4 h-4 text-white" />;
-                } else if (ev.type === "join") {
-                  badgeColor = "bg-[#eff6ff] text-[#2563eb] border-[#bfdbfe]";
-                  icon = <LogIn className="w-4 h-4 text-[#2563eb]" />;
-                } else if (ev.type === "reconnect") {
-                  badgeColor = "bg-[#fefce8] text-[#ca8a04] border-[#fef08a]";
-                  icon = <RefreshCw className="w-4 h-4 text-[#ca8a04]" />;
-                } else if (ev.type === "kicked") {
-                  badgeColor = "bg-[#fef2f2] text-[#991b1b] border-[#fecaca]";
-                  icon = <UserX className="w-4 h-4 text-[#991b1b]" />;
-                }
+          <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+            {filteredEvents.length === 0 ? (
+              <p className="text-center py-10 text-sm text-[#64748b]">
+                No hay eventos registrados en esta categoría aún.
+              </p>
+            ) : (
+              filteredEvents.map((ev) => {
+                const isCorrect = ev.type === "answer_correct" || ev.type === "saved";
+                const isWrong = ev.type === "answer_wrong" || ev.type === "eliminated";
+                const isJoin = ev.type === "join" || ev.type === "reconnect";
 
                 return (
                   <div
                     key={ev.id}
-                    className={`p-3 rounded-2xl border flex items-center justify-between gap-3 text-xs transition-colors ${badgeColor}`}
+                    className={`p-3 rounded-2xl border flex items-center justify-between gap-3 text-xs sm:text-sm ${
+                      isCorrect
+                        ? "bg-[#e8f5e9]/60 border-[#218653]/30"
+                        : isWrong
+                        ? "bg-[#fde8ea]/60 border-[#c43d4d]/30"
+                        : isJoin
+                        ? "bg-[#eef4fa] border-[#dce6ef]"
+                        : "bg-white border-[#dce6ef]"
+                    }`}
                   >
                     <div className="flex items-center gap-2.5">
-                      <span className="shrink-0">{icon}</span>
-                      <span className="font-semibold text-sm">{ev.message}</span>
+                      {isCorrect && <CheckCircle2 className="w-4 h-4 text-[#218653] shrink-0" />}
+                      {isWrong && <XCircle className="w-4 h-4 text-[#c43d4d] shrink-0" />}
+                      {isJoin && <Users className="w-4 h-4 text-[#23395b] shrink-0" />}
+                      <span className="font-bold text-[#23395b]">{ev.nickname}:</span>
+                      <span className="text-[#475569]">{ev.message}</span>
                     </div>
-
-                    <div className="flex items-center gap-2 font-mono text-[11px] opacity-80 shrink-0">
-                      <Clock className="w-3 h-3" />
-                      <span>{timeStr}</span>
-                    </div>
+                    <span className="text-[11px] font-mono text-[#94a3b8] shrink-0">
+                      {new Date(ev.timestamp).toLocaleTimeString()}
+                    </span>
                   </div>
                 );
-              })}
-            </div>
-          )}
+              })
+            )}
+          </div>
         </div>
       )}
 
-      {/* TAB 2: STUDENTS ROSTER & INDIVIDUAL STATUS */}
+      {/* TAB 2: STUDENTS ROSTER */}
       {activeTab === "students" && (
         <div className="bg-[#ffffff] border-2 border-[#dce6ef] rounded-3xl p-5 sm:p-6 shadow-sm">
-          {/* Search bar */}
-          <div className="flex items-center justify-between gap-4 mb-4 pb-4 border-b border-[#e2ecf5]">
-            <div className="relative w-full max-w-sm">
-              <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-[#94a3b8]" />
+          <div className="flex items-center gap-3 mb-4">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-[#94a3b8] absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
+                placeholder="Buscar alumno por nombre..."
                 value={searchStudent}
                 onChange={(e) => setSearchStudent(e.target.value)}
-                placeholder="Buscar alumno por nombre..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#f8fafc] border border-[#dce6ef] text-xs font-semibold text-[#23395b] outline-none focus:border-[#23395b]"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#f8fafc] border border-[#dce6ef] text-sm text-[#23395b] outline-none"
               />
             </div>
-            <span className="text-xs text-[#64748b]">Total: {filteredStudents.length}</span>
+            <span className="text-xs font-bold text-[#64748b] shrink-0">
+              {filteredStudents.length} de {leaderboard.length}
+            </span>
           </div>
 
-          {/* Table */}
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left border-collapse text-xs sm:text-sm">
               <thead>
-                <tr className="border-b border-[#e2ecf5] text-[#64748b] font-bold uppercase tracking-wider text-[10px]">
-                  <th className="py-3 px-3">Posición</th>
-                  <th className="py-3 px-3">Alumno</th>
-                  <th className="py-3 px-3">Estado Muñeco</th>
-                  <th className="py-3 px-3">Progreso</th>
-                  <th className="py-3 px-3 text-center">Aciertos</th>
-                  <th className="py-3 px-3 text-center">Fallos</th>
-                  <th className="py-3 px-3 text-center">Puntos</th>
-                  <th className="py-3 px-3 text-center">Tiempo Total</th>
-                  <th className="py-3 px-3 text-right">Acción</th>
+                <tr className="border-b border-[#dce6ef] text-[#64748b] font-bold text-[11px] uppercase tracking-wider">
+                  <th className="py-2.5 px-3">Pos</th>
+                  <th className="py-2.5 px-3">Alumno</th>
+                  <th className="py-2.5 px-3">Estado Muñeco</th>
+                  <th className="py-2.5 px-3">Progreso</th>
+                  <th className="py-2.5 px-3 text-center">Aciertos</th>
+                  <th className="py-2.5 px-3 text-center">Fallos</th>
+                  <th className="py-2.5 px-3 text-center">Puntaje</th>
+                  <th className="py-2.5 px-3 text-center">Tiempo</th>
+                  <th className="py-2.5 px-3 text-right">Acción</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f1f5f9]">
-                {filteredStudents.map((s) => {
-                  const isDead = s.status === "eliminado" || s.danger_parts >= 6;
+                {filteredStudents.map((s, idx) => {
+                  const isAlive = s.danger_parts < 6 && s.status !== "eliminado";
                   const isSaved = s.danger_parts === 0;
 
                   return (
                     <tr key={s.id} className="hover:bg-[#f8fafc] transition-colors">
-                      <td className="py-3 px-3 font-bold text-[#64748b]">#{s.rank}</td>
-                      <td className="py-3 px-3 font-bold text-[#1e293b]">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`w-2 h-2 rounded-full ${
-                              s.is_connected ? "bg-[#218653]" : "bg-[#94a3b8]"
-                            }`}
-                          />
-                          <span>{s.nickname}</span>
-                        </div>
+                      <td className="py-3 px-3 font-mono font-bold text-[#64748b]">#{idx + 1}</td>
+                      <td className="py-3 px-3 font-bold text-[#23395b]">
+                        {s.nickname}
+                        {!s.is_connected && (
+                          <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-normal">
+                            Desconectado
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-3">
                         {isSaved ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#218653] bg-[#e8f7ee] px-2 py-0.5 rounded-full">
-                            <Sparkles className="w-3 h-3" /> Salvado (0/6)
+                          <span className="px-2 py-0.5 rounded-full bg-[#e8f5e9] text-[#218653] font-bold text-xs inline-flex items-center gap-1">
+                            ¡Salvado! (0 piezas)
                           </span>
-                        ) : isDead ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#c43d4d] bg-[#fde8ea] px-2 py-0.5 rounded-full">
-                            <XCircle className="w-3 h-3" /> Ahorcado (6/6)
+                        ) : !isAlive ? (
+                          <span className="px-2 py-0.5 rounded-full bg-[#fde8ea] text-[#c43d4d] font-bold text-xs">
+                            Ahorcado (6 piezas)
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#d97706] bg-[#fef3c7] px-2 py-0.5 rounded-full">
+                          <span className="px-2 py-0.5 rounded-full bg-[#fffbeb] text-[#d97706] font-bold text-xs">
                             Peligro: {s.danger_parts}/6
                           </span>
                         )}
@@ -429,7 +543,377 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
         </div>
       )}
 
-      {/* TAB 3: CHARTS & DIFFICULTY BY QUESTION */}
+      {/* TAB 3: SOLUCIONARIO Y RESPUESTAS (ANSWER KEY) */}
+      {activeTab === "solutions" && (
+        <div className="bg-[#ffffff] border-2 border-[#dce6ef] rounded-3xl p-5 sm:p-6 shadow-sm space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[#e2ecf5]">
+            <div>
+              <h3 className="text-lg font-black text-[#23395b] flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-[#218653]" />
+                Solucionario Oficial y Respuestas Correctas
+              </h3>
+              <p className="text-xs text-[#64748b] mt-0.5">
+                Guía completa para el docente con todas las ecuaciones en KaTeX, respuestas correctas destacadas y desarrollo matemático paso a paso.
+              </p>
+            </div>
+            {room.status === "waiting" && (
+              <button
+                onClick={handleRegenerateQuestions}
+                disabled={actionLoading}
+                className="px-3.5 py-2 rounded-xl bg-[#23395b] text-white text-xs font-bold shadow-xs hover:bg-[#1b2c47] transition-all flex items-center gap-2"
+              >
+                <Shuffle className="w-3.5 h-3.5 text-[#218653]" />
+                Generar Otro Conjunto Aleatorio
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 gap-6">
+            {localQuestions.map((q, idx) => (
+              <div
+                key={idx}
+                className="p-5 rounded-2xl bg-[#f8fafc] border-2 border-[#dce6ef] hover:border-[#23395b]/30 transition-all flex flex-col gap-4"
+              >
+                {/* Header Question */}
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 rounded-lg bg-[#23395b] text-white flex items-center justify-center font-black text-xs">
+                      #{idx + 1}
+                    </span>
+                    <span className="font-bold text-sm text-[#23395b]">
+                      Pregunta {idx + 1} de 10
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                        q.level === "basico"
+                          ? "bg-blue-100 text-blue-800"
+                          : q.level === "intermedio"
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-purple-100 text-purple-800"
+                      }`}
+                    >
+                      {q.level}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#eef4fa] text-[#23395b]">
+                      {q.questionType === "multiple_choice" ? "Opción Múltiple" : "Numérica"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Prompt */}
+                <div className="p-4 rounded-xl bg-white border border-[#e2ecf5] text-sm text-[#23395b] leading-relaxed">
+                  <MathRenderer latex={q.promptLatex} />
+                </div>
+
+                {/* Options / Correct Answer */}
+                {q.questionType === "multiple_choice" && q.optionsLatex && (
+                  <div>
+                    <span className="block text-xs font-bold uppercase tracking-wider text-[#64748b] mb-2">
+                      Opciones presentadas a los alumnos:
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {q.optionsLatex.map((opt, optIdx) => {
+                        const isCorrect = opt.trim() === q.correctAnswer.trim();
+                        return (
+                          <div
+                            key={optIdx}
+                            className={`p-3 rounded-xl border-2 flex items-center justify-between gap-3 text-sm transition-all ${
+                              isCorrect
+                                ? "bg-[#e8f5e9] border-[#218653] font-bold text-[#1a6e43] shadow-xs"
+                                : "bg-white border-[#dce6ef] text-[#475569]"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs text-[#94a3b8]">
+                                {String.fromCharCode(65 + optIdx)})
+                              </span>
+                              <MathRenderer latex={opt} />
+                            </div>
+                            {isCorrect && (
+                              <span className="px-2 py-0.5 rounded-md bg-[#218653] text-white font-bold text-[11px] shrink-0 flex items-center gap-1">
+                                <Check className="w-3 h-3" />
+                                Correcta
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {q.questionType === "numeric" && (
+                  <div className="p-3.5 rounded-xl bg-[#e8f5e9] border-2 border-[#218653] flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#1a6e43]">
+                      Respuesta Numérica Correcta:
+                    </span>
+                    <span className="font-mono font-black text-lg text-[#1a6e43] px-3 py-1 bg-white rounded-lg border border-[#218653]/30">
+                      <MathRenderer latex={q.correctAnswer} />
+                    </span>
+                  </div>
+                )}
+
+                {/* Mathematical Explanation */}
+                <div className="p-4 rounded-xl bg-[#eef4fa] border border-[#dce6ef]">
+                  <span className="block text-xs font-bold uppercase tracking-wider text-[#23395b] mb-1.5 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[#218653]" />
+                    Procedimiento y Justificación Paso a Paso:
+                  </span>
+                  <div className="text-xs sm:text-sm text-[#334155] leading-relaxed">
+                    <MathRenderer latex={q.explanationLatex} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: QUESTION CUSTOMIZER & CREATOR */}
+      {activeTab === "customizer" && (
+        <div className="bg-[#ffffff] border-2 border-[#dce6ef] rounded-3xl p-5 sm:p-6 shadow-sm space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[#e2ecf5]">
+            <div>
+              <h3 className="text-lg font-black text-[#23395b] flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-[#23395b]" />
+                Diseñador de Preguntas de la Partida
+              </h3>
+              <p className="text-xs text-[#64748b] mt-0.5">
+                Crea o modifica las preguntas, ecuaciones en LaTeX, alternativas y explicaciones que responderán los alumnos.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={handleRegenerateQuestions}
+                disabled={actionLoading}
+                className="px-3.5 py-2 rounded-xl border border-[#dce6ef] hover:bg-[#eef4fa] text-xs font-bold text-[#23395b] flex items-center gap-1.5"
+              >
+                <Shuffle className="w-3.5 h-3.5 text-[#218653]" />
+                Regenerar Todas
+              </button>
+
+              <button
+                onClick={handleSaveCustomQuestions}
+                disabled={actionLoading}
+                className={`px-4 py-2 rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-1.5 ${
+                  saveSuccess
+                    ? "bg-[#218653] text-white"
+                    : "bg-[#23395b] hover:bg-[#1b2c47] text-white"
+                }`}
+              >
+                {saveSuccess ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+                {saveSuccess ? "¡Guardado!" : "Guardar Preguntas"}
+              </button>
+            </div>
+          </div>
+
+          {/* Question Index Selector (1 to 10) */}
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {localQuestions.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setSelectedQIndex(idx)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold shrink-0 transition-all ${
+                  selectedQIndex === idx
+                    ? "bg-[#23395b] text-white shadow-sm"
+                    : "bg-[#f8fafc] border border-[#dce6ef] text-[#64748b] hover:bg-[#eef4fa]"
+                }`}
+              >
+                Pregunta {idx + 1}
+              </button>
+            ))}
+          </div>
+
+          {/* Current Question Form */}
+          {currentQ && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left Column: Form Fields */}
+              <div className="lg:col-span-7 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#64748b] mb-1">
+                      Nivel de Dificultad
+                    </label>
+                    <select
+                      value={currentQ.level}
+                      onChange={(e) =>
+                        updateCurrentQuestion({ level: e.target.value as any })
+                      }
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#dce6ef] bg-[#f8fafc] text-xs font-bold text-[#23395b] outline-none"
+                    >
+                      <option value="basico">Básico (Preguntas 1-3)</option>
+                      <option value="intermedio">Intermedio (Preguntas 4-7)</option>
+                      <option value="avanzado">Avanzado (Preguntas 8-10)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#64748b] mb-1">
+                      Tipo de Respuesta
+                    </label>
+                    <select
+                      value={currentQ.questionType}
+                      onChange={(e) =>
+                        updateCurrentQuestion({
+                          questionType: e.target.value as any,
+                          optionsLatex:
+                            e.target.value === "multiple_choice"
+                              ? currentQ.optionsLatex || [currentQ.correctAnswer, "0", "1", "-1"]
+                              : undefined,
+                        })
+                      }
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#dce6ef] bg-[#f8fafc] text-xs font-bold text-[#23395b] outline-none"
+                    >
+                      <option value="multiple_choice">Selección Múltiple (4 opciones)</option>
+                      <option value="numeric">Numérica / Fracción exacta</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Prompt */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#64748b] mb-1">
+                    Enunciado de la Pregunta (Soporta Markdown y LaTeX: $ ... $, $$ ... $$)
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={currentQ.promptLatex}
+                    onChange={(e) => updateCurrentQuestion({ promptLatex: e.target.value })}
+                    className="w-full p-3.5 rounded-xl border border-[#dce6ef] bg-[#f8fafc] font-mono text-xs text-[#23395b] outline-none"
+                  />
+                </div>
+
+                {/* Multiple Choice Options */}
+                {currentQ.questionType === "multiple_choice" && (
+                  <div className="space-y-2.5">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#64748b]">
+                      Opciones y Selección de la Respuesta Correcta:
+                    </label>
+                    {(currentQ.optionsLatex || []).map((opt, optIdx) => (
+                      <div key={optIdx} className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="correctOptionRadio"
+                          checked={opt.trim() === currentQ.correctAnswer.trim()}
+                          onChange={() => updateCurrentQuestion({ correctAnswer: opt })}
+                          className="w-4 h-4 text-[#218653] cursor-pointer"
+                          title="Marcar como respuesta correcta"
+                        />
+                        <span className="font-mono text-xs font-bold text-[#64748b] w-5">
+                          {String.fromCharCode(65 + optIdx)})
+                        </span>
+                        <input
+                          type="text"
+                          value={opt}
+                          onChange={(e) => {
+                            const newOptions = [...(currentQ.optionsLatex || [])];
+                            const wasCorrect = opt.trim() === currentQ.correctAnswer.trim();
+                            newOptions[optIdx] = e.target.value;
+                            updateCurrentQuestion({
+                              optionsLatex: newOptions,
+                              ...(wasCorrect ? { correctAnswer: e.target.value } : {}),
+                            });
+                          }}
+                          className="flex-1 px-3 py-2 rounded-xl border border-[#dce6ef] bg-[#f8fafc] font-mono text-xs text-[#23395b] outline-none"
+                          placeholder="Fórmula en LaTeX (ej: \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix})"
+                        />
+                      </div>
+                    ))}
+                    <p className="text-[11px] text-[#64748b]">
+                      Selecciona el radio circular al lado de la opción que corresponde a la respuesta correcta.
+                    </p>
+                  </div>
+                )}
+
+                {/* Numeric Correct Answer */}
+                {currentQ.questionType === "numeric" && (
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#64748b] mb-1">
+                      Respuesta Numérica Correcta (ej: 5, -3, 3/4)
+                    </label>
+                    <input
+                      type="text"
+                      value={currentQ.correctAnswer}
+                      onChange={(e) => updateCurrentQuestion({ correctAnswer: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#dce6ef] bg-[#f8fafc] font-mono text-xs text-[#23395b] outline-none"
+                      placeholder="Ej: -2"
+                    />
+                  </div>
+                )}
+
+                {/* Explanation */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#64748b] mb-1">
+                    Explicación y Procedimiento Paso a Paso (LaTeX)
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={currentQ.explanationLatex}
+                    onChange={(e) =>
+                      updateCurrentQuestion({ explanationLatex: e.target.value })
+                    }
+                    className="w-full p-3.5 rounded-xl border border-[#dce6ef] bg-[#f8fafc] font-mono text-xs text-[#23395b] outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Right Column: Live KaTeX Preview */}
+              <div className="lg:col-span-5 bg-[#f8fafc] border-2 border-[#dce6ef] rounded-2xl p-4 sm:p-5 flex flex-col gap-4">
+                <span className="text-xs font-bold uppercase tracking-wider text-[#218653] flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Vista Previa en Tiempo Real (KaTeX)
+                </span>
+
+                <div className="p-4 rounded-xl bg-white border border-[#e2ecf5] text-sm text-[#23395b]">
+                  <MathRenderer latex={currentQ.promptLatex} />
+                </div>
+
+                {currentQ.questionType === "multiple_choice" && currentQ.optionsLatex && (
+                  <div className="space-y-2">
+                    {currentQ.optionsLatex.map((opt, i) => {
+                      const isCorrect = opt.trim() === currentQ.correctAnswer.trim();
+                      return (
+                        <div
+                          key={i}
+                          className={`p-2.5 rounded-xl border text-xs flex items-center justify-between ${
+                            isCorrect
+                              ? "bg-[#e8f5e9] border-[#218653] font-bold text-[#1a6e43]"
+                              : "bg-white border-[#dce6ef] text-[#475569]"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs text-[#94a3b8]">
+                              {String.fromCharCode(65 + i)})
+                            </span>
+                            <MathRenderer latex={opt} />
+                          </div>
+                          {isCorrect && <Check className="w-3.5 h-3.5 text-[#218653]" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {currentQ.questionType === "numeric" && (
+                  <div className="p-3 rounded-xl bg-[#e8f5e9] border border-[#218653] text-xs font-bold text-[#1a6e43]">
+                    Respuesta correcta: <MathRenderer latex={currentQ.correctAnswer} />
+                  </div>
+                )}
+
+                <div className="p-3 rounded-xl bg-[#eef4fa] border border-[#dce6ef] text-xs text-[#334155]">
+                  <strong className="block text-[#23395b] mb-1">Explicación:</strong>
+                  <MathRenderer latex={currentQ.explanationLatex} />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 5: CHARTS & DIFFICULTY BY QUESTION */}
       {activeTab === "charts" && (
         <div className="bg-[#ffffff] border-2 border-[#dce6ef] rounded-3xl p-5 sm:p-6 shadow-sm">
           <div className="mb-6">

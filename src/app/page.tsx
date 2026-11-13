@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { HangmanDoll } from "@/components/HangmanDoll";
+import { containsProfanity } from "@/lib/profanity";
 import {
   Users,
   Play,
@@ -53,6 +54,11 @@ export default function HomePage() {
     e.preventDefault();
     if (!nickname.trim()) {
       setError("Por favor ingresa tu apodo u organización.");
+      return;
+    }
+
+    if (containsProfanity(nickname)) {
+      setError("El apodo contiene palabras inapropiadas o no permitidas. Por favor usa un nombre respetuoso.");
       return;
     }
 
@@ -114,6 +120,11 @@ export default function HomePage() {
 
     if (!nickname.trim()) {
       setError("Por favor ingresa tu apodo.");
+      return;
+    }
+
+    if (containsProfanity(nickname)) {
+      setError("El apodo contiene palabras inapropiadas o no permitidas. Por favor usa un nombre respetuoso.");
       return;
     }
 
@@ -307,10 +318,9 @@ export default function HomePage() {
                   </label>
                   <input
                     type="text"
-                    maxLength={25}
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
-                    placeholder="Ej: Sofia_Gauss"
+                    placeholder="Ej: Laura Vanessa Mazo Herrera"
                     required
                     className="w-full px-4 py-3 rounded-xl bg-[#f8fafc] border-2 border-[#dce6ef] focus:border-[#23395b] focus:bg-white text-base font-semibold text-[#23395b] placeholder:text-[#94a3b8] transition-all outline-none"
                   />
@@ -342,7 +352,6 @@ export default function HomePage() {
                   </label>
                   <input
                     type="text"
-                    maxLength={25}
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
                     placeholder="Ej: Profe_Euler"

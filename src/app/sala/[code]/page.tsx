@@ -14,6 +14,7 @@ import {
   RoomEvent,
   ModeratorStats,
 } from "@/lib/supabase/types";
+import { QuestionData } from "@/lib/math-engine/templates";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
   Users,
@@ -52,6 +53,7 @@ function RoomPageContent() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [events, setEvents] = useState<RoomEvent[]>([]);
   const [moderatorStats, setModeratorStats] = useState<ModeratorStats | undefined>(undefined);
+  const [masterQuestions, setMasterQuestions] = useState<QuestionData[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<any>(null);
   const [serverTimeDelta, setServerTimeDelta] = useState<number>(0);
 
@@ -79,7 +81,10 @@ function RoomPageContent() {
     if (!roomCode) return;
     try {
       const token = localStorage.getItem("doll_player_token") || "";
-      const res = await fetch(`/api/rooms/state?code=${roomCode}&playerToken=${token}`);
+      const currentHost = hostToken || localStorage.getItem("doll_host_token_" + roomCode) || "";
+      const res = await fetch(
+        `/api/rooms/state?code=${roomCode}&playerToken=${token}&hostToken=${currentHost}`
+      );
       const data = await res.json();
 
       if (!data.success) {
@@ -92,6 +97,9 @@ function RoomPageContent() {
       setLeaderboard(data.leaderboard || []);
       setEvents(data.events || []);
       setModeratorStats(data.moderatorStats);
+      if (data.masterQuestions) {
+        setMasterQuestions(data.masterQuestions);
+      }
       setCurrentQuestion(data.currentQuestion);
 
       if (data.serverNow) {
@@ -101,7 +109,7 @@ function RoomPageContent() {
     } catch (err: any) {
       console.error("Error polling room state:", err);
     }
-  }, [roomCode, loading]);
+  }, [roomCode, loading, hostToken]);
 
   // Initial load & host detection
   useEffect(() => {
@@ -357,9 +365,11 @@ function RoomPageContent() {
           leaderboard={leaderboard}
           events={events}
           stats={moderatorStats}
+          masterQuestions={masterQuestions}
           hostToken={hostToken}
           onRefresh={fetchRoomState}
           onStartGame={handleStartGame}
+          onQuestionsUpdated={(qs) => setMasterQuestions(qs)}
         />
       </main>
     );
@@ -808,6 +818,16 @@ function RoomPageContent() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center justify-center gap-4 mt-4">
+          {isHost && (
+            <button
+              onClick={() => setViewMode("moderator")}
+              className="px-6 py-3 rounded-2xl bg-[#23395b] hover:bg-[#1b2c47] text-white font-bold text-sm shadow-md transition-all active:scale-95 flex items-center gap-2"
+            >
+              <Radio className="w-4 h-4 text-[#218653]" />
+              Ver Solucionario y Estadísticas del Aula
+            </button>
+          )}
+
           <button
             onClick={() => router.push("/")}
             className="px-6 py-3 rounded-2xl bg-[#ffffff] border-2 border-[#dce6ef] hover:border-[#23395b] text-[#23395b] font-bold text-sm shadow-sm transition-all active:scale-95"

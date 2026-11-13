@@ -236,6 +236,104 @@ describe("MathRenderer KaTeX HTML parser", () => {
           expect(optHtml).toContain("katex");
         }
       }
+
+      // Check explanation KaTeX rendering
+      const explHtml = renderLatexToHtml(q.explanationLatex);
+      expect(explHtml).toBeDefined();
+      expect(explHtml).toContain("katex");
+      expect(explHtml).not.toContain("<br/> 0 &"); // ensures matrix row break was not corrupted into <br/>
     }
+  });
+
+  it("never corrupts matrix row breaks inside inline or display formulas", async () => {
+    const { renderLatexToHtml } = await import("../../../components/MathRenderer");
+    const mixed = "La matriz es $M = \\begin{pmatrix} 2 & 5 \\\\ -1 & 3 \\end{pmatrix}$ y el vector es $v = \\begin{pmatrix} 4 \\\\ 7 \\end{pmatrix}$.";
+    const html = renderLatexToHtml(mixed);
+    expect(html).toContain("katex");
+    expect(html).not.toContain("<br/>");
+    expect(html).toContain("matrix");
+  });
+});
+
+describe("Profanity and albur filter (profanity.ts)", () => {
+  it("blocks offensive words, insults and vulgarities in Spanish", async () => {
+    const { containsProfanity } = await import("../../profanity");
+
+    expect(containsProfanity("puta")).toBe(true);
+    expect(containsProfanity("gonorrea")).toBe(true);
+    expect(containsProfanity("hijueputa")).toBe(true);
+    expect(containsProfanity("mierda")).toBe(true);
+    expect(containsProfanity("malparido")).toBe(true);
+    expect(containsProfanity("pendejo")).toBe(true);
+    expect(containsProfanity("chingar")).toBe(true);
+  });
+
+  it("blocks common double entendre puns and albures", async () => {
+    const { containsProfanity } = await import("../../profanity");
+
+    expect(containsProfanity("Elver Galarga")).toBe(true);
+    expect(containsProfanity("elvergalarga")).toBe(true);
+    expect(containsProfanity("Deborah Melo")).toBe(true);
+    expect(containsProfanity("Benito Camelas")).toBe(true);
+    expect(containsProfanity("Rosa Melano")).toBe(true);
+    expect(containsProfanity("Aquiles Baeza")).toBe(true);
+  });
+
+  it("detects leetspeak evasions", async () => {
+    const { containsProfanity } = await import("../../profanity");
+
+    expect(containsProfanity("p0rn0")).toBe(true);
+    expect(containsProfanity("pvt4")).toBe(false); // standard text
+    expect(containsProfanity("p_u_t_a")).toBe(true);
+    expect(containsProfanity("puuutaaaa")).toBe(true);
+  });
+
+  it("permits legitimate and educational student names without false positives", async () => {
+    const { containsProfanity } = await import("../../profanity");
+
+    expect(containsProfanity("Laura Vanessa Mazo Herrera")).toBe(false);
+    expect(containsProfanity("Sofia Gauss")).toBe(false);
+    expect(containsProfanity("Carl Friedrich Gauss")).toBe(false);
+    expect(containsProfanity("Leonhard Euler")).toBe(false);
+    expect(containsProfanity("Ada Lovelace")).toBe(false);
+    expect(containsProfanity("Estudiante_Algebra_2026")).toBe(false);
+  });
+});
+
+describe("Room Questions and Solucionario (game-store)", () => {
+  it("generates and manages master questions with correct answers and explanations", async () => {
+    const {
+      getRoomMasterQuestions,
+      setRoomMasterQuestions,
+      regenerateRoomMasterQuestions,
+    } = await import("../../game/game-store");
+
+    const code = "TEST01";
+    const qList = getRoomMasterQuestions(code);
+    expect(qList).toHaveLength(10);
+
+    for (const q of qList) {
+      expect(q.promptLatex).toBeDefined();
+      expect(q.correctAnswer).toBeDefined();
+      expect(q.explanationLatex).toBeDefined();
+      expect(["basico", "intermedio", "avanzado"]).toContain(q.level);
+    }
+
+    // Regenerate
+    const regenerated = regenerateRoomMasterQuestions(code);
+    expect(regenerated).toHaveLength(10);
+
+    // Custom questions
+    const customList = [...regenerated];
+    customList[0] = {
+      ...customList[0],
+      promptLatex: "¿Pregunta personalizada?",
+      correctAnswer: "42",
+      explanationLatex: "Explicación personalizada",
+    };
+    setRoomMasterQuestions(code, customList);
+    const updated = getRoomMasterQuestions(code);
+    expect(updated[0].promptLatex).toBe("¿Pregunta personalizada?");
+    expect(updated[0].correctAnswer).toBe("42");
   });
 });

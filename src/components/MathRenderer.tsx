@@ -12,91 +12,116 @@ interface MathRendererProps {
 /**
  * Pure parsing function that handles mixed Markdown, LaTeX text commands,
  * display math ($$...$$), inline math ($...$), and raw matrix blocks.
+ *
+ * CRITICAL: Math environments and LaTeX commands MUST be tokenized and preserved
+ * BEFORE any text replacements (like converting newlines or bold), so that matrix
+ * row breaks (\\) are never replaced by <br/>.
  */
 export function renderLatexToHtml(latex: string, displayMode: boolean = false): string {
   if (!latex) return "";
 
   const trimmed = latex.trim();
 
-  // 1. Direct formula without text (options, pure matrices, fractions, coordinates)
-  if (
-    !trimmed.includes("$") &&
-    (trimmed.startsWith("\\begin{") ||
-      trimmed.startsWith("\\frac{") ||
-      trimmed.startsWith("-\\frac{") ||
-      trimmed.startsWith("\\pmatrix") ||
-      trimmed.startsWith("\\left(") ||
-      trimmed.includes("\\begin{pmatrix}") ||
-      trimmed.includes("\\cdot"))
-  ) {
+  // 1. Pure math / standalone formula (matrices, fractions, determinants, vectors)
+  const isPureFormula =
+    !trimmed.includes(" ") ||
+    trimmed.startsWith("\\begin{") ||
+    trimmed.startsWith("\\frac{") ||
+    trimmed.startsWith("-\\frac{") ||
+    trimmed.startsWith("\\pmatrix") ||
+    trimmed.startsWith("\\left(") ||
+    trimmed.startsWith("\\det") ||
+    (/^[\-\+0-9\/,\s\(\)\{\}\^\_a-zA-Z\\]+$/.test(trimmed) &&
+      (trimmed.includes("\\") || trimmed.includes("^") || trimmed.includes("_") || trimmed.includes("{")));
+
+  if (isPureFormula && !trimmed.includes("$")) {
     try {
       return katex.renderToString(trimmed, {
         displayMode,
         throwOnError: false,
       });
     } catch {
-      return trimmed;
+      // fallback
     }
   }
 
-  // 2. Preprocess text commands & line breaks
-  let text = latex;
+  // 2. Tokenize and extract math blocks BEFORE doing any text replacements
+  const mathTokens: { token: string; html: string }[] = [];
+  let tokenCounter = 0;
 
-  // Convert markdown **bold** and LaTeX \textbf{...}
-  text = text.replace(/\\textbf\{([^{}]+(?:\$[^{}$]+\$[^{}]*)*)\}/g, "<strong>$1</strong>");
-  text = text.replace(/\\textbf\{([^}]+)\}/g, "<strong>$1</strong>");
-  text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-  text = text.replace(/\\textit\{([^}]+)\}/g, "<em>$1</em>");
+  let processed = latex;
 
-  // Line breaks & spacing
-  text = text.replace(/\\\\\[\d+pt\]/g, "<br/><br/>");
-  text = text.replace(/\\\\/g, "<br/>");
-  text = text.replace(/\\newline/g, "<br/>");
-  text = text.replace(/\\quad/g, "&emsp;");
-
-  // 3. Process Display Math: $$ ... $$
-  const displayRegex = /\$\$([\s\S]+?)\$\$/g;
-  text = text.replace(displayRegex, (_, mathContent) => {
-    // Strip any accidental internal dollar signs
+  // A. Display math: $$ ... $$
+  processed = processed.replace(/\$\$([\s\S]+?)\$\$/g, (_, mathContent) => {
+    const token = `KATEXDISPTOKEN${tokenCounter++}END`;
     const cleanMath = mathContent.replace(/\$/g, "").trim();
+    let rendered = cleanMath;
     try {
-      return katex.renderToString(cleanMath, {
+      rendered = katex.renderToString(cleanMath, {
         displayMode: true,
         throwOnError: false,
       });
     } catch {
-      return mathContent;
+      // keep fallback
     }
+    mathTokens.push({ token, html: rendered });
+    return token;
   });
 
-  // 4. Process Inline Math: $ ... $
-  const inlineRegex = /\$([^\$]+?)\$/g;
-  text = text.replace(inlineRegex, (_, mathContent) => {
+  // B. Inline math: $ ... $ (may contain \begin{pmatrix}, fractions, etc.)
+  processed = processed.replace(/\$([^\$]+?)\$/g, (_, mathContent) => {
+    const token = `KATEXINLTOKEN${tokenCounter++}END`;
     const cleanMath = mathContent.trim();
+    let rendered = cleanMath;
     try {
-      return katex.renderToString(cleanMath, {
+      rendered = katex.renderToString(cleanMath, {
         displayMode: false,
         throwOnError: false,
       });
     } catch {
-      return mathContent;
+      // keep fallback
     }
+    mathTokens.push({ token, html: rendered });
+    return token;
   });
 
-  // 5. Catch any un-wrapped \begin{pmatrix} ... \end{pmatrix} that remained outside $
-  const matrixRegex = /\\begin\{pmatrix\}[\s\S]*?\\end\{pmatrix\}/g;
-  text = text.replace(matrixRegex, (matrixContent) => {
-    try {
-      return katex.renderToString(matrixContent.trim(), {
-        displayMode: false,
-        throwOnError: false,
-      });
-    } catch {
-      return matrixContent;
+  // C. Unwrapped matrix/aligned environments that remained outside of $
+  processed = processed.replace(
+    /\\begin\{(?:pmatrix|bmatrix|vmatrix|matrix|aligned|cases)\}[\s\S]*?\\end\{(?:pmatrix|bmatrix|vmatrix|matrix|aligned|cases)\}/g,
+    (matrixContent) => {
+      const token = `KATEXMATTOKEN${tokenCounter++}END`;
+      let rendered = matrixContent;
+      try {
+        rendered = katex.renderToString(matrixContent.trim(), {
+          displayMode: false,
+          throwOnError: false,
+        });
+      } catch {
+        // keep fallback
+      }
+      mathTokens.push({ token, html: rendered });
+      return token;
     }
-  });
+  );
 
-  return text;
+  // 3. Process remaining text formatting (bold, italic, spacing)
+  // Markdown bold **...** and LaTeX \textbf{...}
+  processed = processed.replace(/\\textbf\{([^}]+)\}/g, "<strong>$1</strong>");
+  processed = processed.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  processed = processed.replace(/\\textit\{([^}]+)\}/g, "<em>$1</em>");
+  processed = processed.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+
+  // Spacing & explicit text newlines
+  processed = processed.replace(/\\newline/g, "<br/>");
+  processed = processed.replace(/\\quad/g, "&emsp;");
+  processed = processed.replace(/\n\n/g, "<br/><br/>");
+
+  // 4. Restore math tokens
+  for (const { token, html } of mathTokens) {
+    processed = processed.split(token).join(html);
+  }
+
+  return processed;
 }
 
 export const MathRenderer: React.FC<MathRendererProps> = ({

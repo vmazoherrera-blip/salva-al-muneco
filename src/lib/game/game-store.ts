@@ -9,6 +9,7 @@ import {
   QuestionAccuracyStat,
 } from "../supabase/types";
 import { generateMatchQuestions } from "../math-engine/generator";
+import { QuestionData } from "../math-engine/templates";
 import { validateAnswer } from "../math-engine/validator";
 
 // Server admin client
@@ -44,6 +45,7 @@ class MemoryDb {
   roomPlayers = new Map<string, string[]>(); // key: room_id -> player_id[]
   questions = new Map<string, PlayerQuestion[]>(); // key: player_id -> questions[]
   events = new Map<string, RoomEvent[]>(); // key: code -> events[]
+  masterQuestions = new Map<string, QuestionData[]>(); // key: code -> QuestionData[]
 
   generateCode(): string {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -56,6 +58,29 @@ class MemoryDb {
 }
 
 const memoryDb = new MemoryDb();
+
+// Room Master Questions Helpers (Solucionario and Customization)
+export function getRoomMasterQuestions(code: string): QuestionData[] {
+  const cleanCode = code.trim().toUpperCase();
+  let list = memoryDb.masterQuestions.get(cleanCode);
+  if (!list || list.length === 0) {
+    list = generateMatchQuestions();
+    memoryDb.masterQuestions.set(cleanCode, list);
+  }
+  return list;
+}
+
+export function setRoomMasterQuestions(code: string, questions: QuestionData[]) {
+  const cleanCode = code.trim().toUpperCase();
+  memoryDb.masterQuestions.set(cleanCode, questions);
+}
+
+export function regenerateRoomMasterQuestions(code: string): QuestionData[] {
+  const cleanCode = code.trim().toUpperCase();
+  const fresh = generateMatchQuestions();
+  memoryDb.masterQuestions.set(cleanCode, fresh);
+  return fresh;
+}
 
 // Helper to record room activity events
 export function addRoomEvent(code: string, event: Omit<RoomEvent, "id">) {
@@ -147,6 +172,7 @@ export async function createGameRoom(timePerQuestion: number = 60, maxPlayers: n
         .single();
 
       if (!error && data) {
+        getRoomMasterQuestions(code);
         return { room: data as Room, hostToken };
       }
     } catch (e) {
@@ -167,6 +193,7 @@ export async function createGameRoom(timePerQuestion: number = 60, maxPlayers: n
 
   memoryDb.rooms.set(code, room);
   memoryDb.roomPlayers.set(room.id, []);
+  getRoomMasterQuestions(code);
 
   addRoomEvent(code, {
     room_code: code,
@@ -182,7 +209,7 @@ export async function createGameRoom(timePerQuestion: number = 60, maxPlayers: n
 
 export async function joinGameRoom(code: string, nickname: string, playerToken?: string) {
   const cleanCode = code.trim().toUpperCase();
-  const cleanNickname = nickname.trim().slice(0, 30);
+  const cleanNickname = nickname.trim().slice(0, 200);
   const token = playerToken || "p_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
 
   if (isRealSupabaseAvailable() && adminClient) {
@@ -339,8 +366,17 @@ export async function joinGameRoom(code: string, nickname: string, playerToken?:
   return { room, player: newPlayer, playerToken: token };
 }
 
-export async function startGameRoom(code: string, hostToken: string) {
+export async function startGameRoom(
+  code: string,
+  hostToken: string,
+  customQuestions?: QuestionData[]
+) {
   const cleanCode = code.trim().toUpperCase();
+
+  if (customQuestions && customQuestions.length > 0) {
+    setRoomMasterQuestions(cleanCode, customQuestions);
+  }
+  const matchQuestions = getRoomMasterQuestions(cleanCode);
 
   if (isRealSupabaseAvailable() && adminClient) {
     try {
@@ -367,8 +403,7 @@ export async function startGameRoom(code: string, hostToken: string) {
         const allQuestionsToInsert: any[] = [];
 
         for (const p of players) {
-          const generated = generateMatchQuestions();
-          for (const q of generated) {
+          for (const q of matchQuestions) {
             allQuestionsToInsert.push({
               player_id: p.id,
               question_index: q.questionIndex,
@@ -414,8 +449,7 @@ export async function startGameRoom(code: string, hostToken: string) {
   const nowIso = new Date().toISOString();
 
   for (const pid of playerIds) {
-    const generated = generateMatchQuestions();
-    const pQuestions: PlayerQuestion[] = generated.map((q) => ({
+    const pQuestions: PlayerQuestion[] = matchQuestions.map((q) => ({
       id: "q_" + Math.random().toString(36).substring(2, 9),
       player_id: pid,
       question_index: q.questionIndex,
@@ -470,7 +504,7 @@ function calculateQuestionStats(playerIds: string[]): QuestionAccuracyStat[] {
   return stats;
 }
 
-export async function getGameRoomState(code: string, playerToken?: string) {
+export async function getGameRoomState(code: string, playerToken?: string, hostToken?: string) {
   const cleanCode = code.trim().toUpperCase();
 
   if (isRealSupabaseAvailable() && adminClient) {
@@ -532,6 +566,9 @@ export async function getGameRoomState(code: string, playerToken?: string) {
         questionStats: calculateQuestionStats(allPlayers.map((p) => p.id)),
       };
 
+      const isHost = Boolean(hostToken && hostToken === room.host_token);
+      const masterQuestions = isHost ? getRoomMasterQuestions(cleanCode) : undefined;
+
       return {
         room: room as Room,
         player: currentPlayer,
@@ -539,6 +576,7 @@ export async function getGameRoomState(code: string, playerToken?: string) {
         currentQuestion,
         events: getRoomEvents(cleanCode),
         moderatorStats,
+        masterQuestions,
         serverNow: Date.now(),
       };
     } catch (e) {
@@ -596,6 +634,9 @@ export async function getGameRoomState(code: string, playerToken?: string) {
     questionStats: calculateQuestionStats(playerIds),
   };
 
+  const isHost = Boolean(hostToken && hostToken === room.host_token);
+  const masterQuestions = isHost ? getRoomMasterQuestions(cleanCode) : undefined;
+
   return {
     room,
     player: currentPlayer,
@@ -603,6 +644,7 @@ export async function getGameRoomState(code: string, playerToken?: string) {
     currentQuestion,
     events: getRoomEvents(cleanCode),
     moderatorStats,
+    masterQuestions,
     serverNow: Date.now(),
   };
 }
