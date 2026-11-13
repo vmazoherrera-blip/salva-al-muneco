@@ -107,10 +107,10 @@ export function generateQ1(): QuestionData {
       questionIndex: 0,
       level: "basico",
       questionType: "multiple_choice",
-      promptLatex: "¿Cuál es la matriz estándar para una **reflexión respecto al eje Y** en $\\mathbb{R}^2$?",
+      promptLatex: "¿Cuál es la matriz estándar para una reflexión respecto al eje Y en ℝ²?",
       optionsLatex: options,
       correctAnswer: correct.toLatex(),
-      explanationLatex: "La reflexión sobre el eje Y invierte el signo de $x$ y mantiene $y$: $T(x, y) = (-x, y)$. En forma matricial: $\\begin{pmatrix} -1 & 0 \\\\ 0 & 1 \\end{pmatrix}$.",
+      explanationLatex: "La reflexión sobre el eje Y invierte el signo de x y mantiene y: T(x, y) = (-x, y). En forma matricial: \\begin{pmatrix} -1 & 0 \\\\ 0 & 1 \\end{pmatrix}.",
     };
   } else {
     const k = randNonZeroInt(2, 5);
@@ -126,10 +126,10 @@ export function generateQ1(): QuestionData {
       questionIndex: 0,
       level: "basico",
       questionType: "multiple_choice",
-      promptLatex: `¿Cuál es la matriz de **escalamiento uniforme** con factor de escala $k = ${k}$?`,
+      promptLatex: `¿Cuál es la matriz de escalamiento uniforme con factor de escala k = ${k}?`,
       optionsLatex: options,
       correctAnswer: correct.toLatex(),
-      explanationLatex: `Un escalamiento uniforme por $k$ multiplica ambas coordenadas por $k$: $T(v) = k v = \\begin{pmatrix} k & 0 \\\\ 0 & k \\end{pmatrix} v$. Con $k = ${k}$, la matriz es ${correct.toLatex()}.`,
+      explanationLatex: `Un escalamiento uniforme por k multiplica ambas coordenadas por k: T(v) = k · v = \\begin{pmatrix} k & 0 \\\\ 0 & k \\end{pmatrix} v. Con k = ${k}, la matriz es ${correct.toLatex()}.`,
     };
   }
 }
@@ -192,7 +192,7 @@ export function generateQ3(): QuestionData {
       questionIndex: 2,
       level: "basico",
       questionType: "numeric",
-      promptLatex: `Al reflejar el vector $v = ${v.toLatex()}$ respecto al **eje ${axis}**, se obtiene el vector $v' = \\begin{pmatrix} x' \\\\ y' \\end{pmatrix}$.\n\n**Calcula el valor numérico de la componente $${askComponent}'$:**`,
+      promptLatex: `Al reflejar el vector v = ${v.toLatex()} respecto al eje ${axis}, se obtiene el vector $v' = \\begin{pmatrix} x' \\\\ y' \\end{pmatrix}$.\n\nCalcula el valor numérico de la componente ${askComponent}':`,
       correctAnswer: answer,
       explanationLatex: axis === "X"
         ? `La reflexión respecto al eje X produce $v' = \\begin{pmatrix} ${vx} \\\\ -(${vy}) \\end{pmatrix} = ${res.toLatex()}$. Por tanto, $${askComponent}' = ${answer}$.`
@@ -208,7 +208,7 @@ export function generateQ3(): QuestionData {
       questionIndex: 2,
       level: "basico",
       questionType: "numeric",
-      promptLatex: `Si se aplica un escalamiento con factor $k = ${k}$ al vector $v = ${v.toLatex()}$, se obtiene $v' = ${k}v$.\n\n**Calcula el valor numérico de la componente $${askComponent}'$:**`,
+      promptLatex: `Si se aplica un escalamiento con factor k = ${k} al vector v = ${v.toLatex()}, se obtiene $v' = ${k}v$.\n\nCalcula el valor numérico de la componente ${askComponent}':`,
       correctAnswer: answer,
       explanationLatex: `El vector resultante es $v' = ${k} \\cdot ${v.toLatex()} = ${res.toLatex()}$. La componente $${askComponent}'$ es $${answer}$.`,
     };
@@ -249,7 +249,7 @@ export function generateQ4(): QuestionData {
     questionIndex: 3,
     level: "intermedio",
     questionType: "multiple_choice",
-    promptLatex: `Se aplica un **escalamiento no uniforme** con factores $s_x = ${sx}$ y $s_y = ${sy}$ mediante la matriz:\n\n$$S = ${S.toLatex()}$$\n\nal vector $v = ${v.toLatex()}$. ¿Cuál es el vector resultante?`,
+    promptLatex: `Se aplica un escalamiento no uniforme con factores sx = ${sx} y sy = ${sy} mediante la matriz:\n\n$$S = ${S.toLatex()}$$\n\nal vector v = ${v.toLatex()}. ¿Cuál es el vector resultante?`,
     optionsLatex: options,
     correctAnswer: res.toLatex(),
     explanationLatex: `Multiplicamos la matriz de escala por el vector:\n\n$S \\cdot v = \\begin{pmatrix} (${sx})(${vx}) \\\\ (${sy})(${vy}) \\end{pmatrix} = ${res.toLatex()}$.`,
@@ -287,7 +287,7 @@ export function generateQ5(): QuestionData {
     questionIndex: 4,
     level: "intermedio",
     questionType: "multiple_choice",
-    promptLatex: `Determina la imagen del vector $v = ${v.toLatex()}$ bajo una **rotación de $${choice.deg}$** alrededor del origen:`,
+    promptLatex: `Determina la imagen del vector v = ${v.toLatex()} bajo una rotación de ${choice.deg} alrededor del origen:`,
     optionsLatex: options,
     correctAnswer: res.toLatex(),
     explanationLatex: `La matriz de rotación para $${choice.deg}$ es $R = ${choice.mat.toLatex()}$.\n\nAl multiplicar $R \\cdot v = ${res.toLatex()}$.`,
@@ -451,7 +451,7 @@ export function generateQ10(): QuestionData {
   } else {
     const k = randInt(2, 3);
     T1 = Matrix2x2.uniformScale(k);
-    desc1 = `un escalamiento uniforme de factor $k = ${k}$`;
+    desc1 = `un escalamiento uniforme de factor k = ${k}`;
     T2 = Matrix2x2.rotate180();
     desc2 = "una rotación de $180^\\circ$";
   }
@@ -474,7 +474,7 @@ export function generateQ10(): QuestionData {
     questionIndex: 9,
     level: "avanzado",
     questionType: "multiple_choice",
-    promptLatex: `Se aplica sucesivamente al vector $v = ${v.toLatex()}$ primero ${desc1}, y a continuación ${desc2}.\n\n¿Cuál es el vector resultante final?`,
+    promptLatex: `Se aplica sucesivamente al vector v = ${v.toLatex()} primero ${desc1}, y a continuación ${desc2}.\n\n¿Cuál es el vector resultante final?`,
     optionsLatex: options,
     correctAnswer: correctV.toLatex(),
     explanationLatex: `La matriz de la primera transformación es $A = ${T1.toLatex()}$ y la de la segunda es $B = ${T2.toLatex()}$.\n\nLa matriz combinada es $M = B \\cdot A = ${composedMatrix.toLatex()}$.\n\nMultiplicando por el vector: $M \\cdot v = ${correctV.toLatex()}$.`,

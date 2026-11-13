@@ -10,7 +10,7 @@ import {
   MathElementFormat,
 } from "@/lib/math-engine/visual-parser";
 import { MathRenderer } from "./MathRenderer";
-import { Check, Code2, Eye } from "lucide-react";
+import { Check, Grid2X2, Columns2, Type, Code2 } from "lucide-react";
 
 interface VisualOptionEditorProps {
   value: string;
@@ -46,7 +46,9 @@ export const VisualOptionEditor: React.FC<VisualOptionEditorProps> = ({
     } else if (newFormat === "vector_2d") {
       onChange(buildVector2(parsedVector.x, parsedVector.y));
     } else {
-      onChange("1");
+      // If switching to simple text/number, default to "4" or clean value if not a matrix
+      const cleanVal = value.includes("\\begin") ? "4" : (value || "4");
+      onChange(cleanVal);
     }
   };
 
@@ -64,7 +66,7 @@ export const VisualOptionEditor: React.FC<VisualOptionEditorProps> = ({
     <div
       className={`p-3.5 rounded-2xl border-2 transition-all flex flex-col gap-2.5 ${
         isCorrect
-          ? "bg-[#e8f5e9]/70 border-[#218653] shadow-xs"
+          ? "bg-[#e8f5e9]/80 border-[#218653] shadow-xs"
           : "bg-white border-[#dce6ef] hover:border-[#cbd5e1]"
       }`}
     >
@@ -89,50 +91,53 @@ export const VisualOptionEditor: React.FC<VisualOptionEditorProps> = ({
           )}
         </label>
 
-        <div className="flex items-center gap-1.5">
-          {/* Format pills */}
-          <div className="flex p-0.5 rounded-lg bg-[#f1f5f9] text-[11px] font-bold">
-            <button
-              type="button"
-              onClick={() => handleFormatChange("matrix_2x2")}
-              className={`px-2.5 py-1 rounded-md transition-all ${
-                format === "matrix_2x2"
-                  ? "bg-white text-[#23395b] shadow-xs"
-                  : "text-[#64748b] hover:text-[#23395b]"
-              }`}
-            >
-              Matriz 2×2
-            </button>
-            <button
-              type="button"
-              onClick={() => handleFormatChange("vector_2d")}
-              className={`px-2.5 py-1 rounded-md transition-all ${
-                format === "vector_2d"
-                  ? "bg-white text-[#23395b] shadow-xs"
-                  : "text-[#64748b] hover:text-[#23395b]"
-              }`}
-            >
-              Vector
-            </button>
+        {/* Format Selector: Simple Number / Text vs Matrix vs Vector */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex p-0.5 rounded-xl bg-[#eef4fa] text-[11px] font-bold">
             <button
               type="button"
               onClick={() => handleFormatChange("scalar_text")}
-              className={`px-2.5 py-1 rounded-md transition-all ${
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${
                 format === "scalar_text"
                   ? "bg-white text-[#23395b] shadow-xs"
                   : "text-[#64748b] hover:text-[#23395b]"
               }`}
             >
-              Número / Texto
+              <Type className="w-3 h-3 text-[#218653]" />
+              Texto / Número (ej: 4)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleFormatChange("matrix_2x2")}
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${
+                format === "matrix_2x2"
+                  ? "bg-white text-[#23395b] shadow-xs"
+                  : "text-[#64748b] hover:text-[#23395b]"
+              }`}
+            >
+              <Grid2X2 className="w-3 h-3 text-[#23395b]" />
+              Matriz 2×2
+            </button>
+            <button
+              type="button"
+              onClick={() => handleFormatChange("vector_2d")}
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${
+                format === "vector_2d"
+                  ? "bg-white text-[#23395b] shadow-xs"
+                  : "text-[#64748b] hover:text-[#23395b]"
+              }`}
+            >
+              <Columns2 className="w-3 h-3 text-[#23395b]" />
+              Vector
             </button>
           </div>
 
-          {/* Toggle raw latex for advanced users */}
+          {/* Toggle raw latex for edge cases */}
           <button
             type="button"
             onClick={() => setShowRawLatex(!showRawLatex)}
-            title="Alternar entre editor visual y código LaTeX"
-            className="p-1.5 rounded-lg text-[#64748b] hover:bg-[#eef4fa] transition-colors"
+            title="Alternar entre modo visual y código LaTeX"
+            className="p-1.5 rounded-lg text-[#94a3b8] hover:text-[#23395b] hover:bg-[#eef4fa] transition-colors"
           >
             <Code2 className="w-3.5 h-3.5" />
           </button>
@@ -147,90 +152,107 @@ export const VisualOptionEditor: React.FC<VisualOptionEditorProps> = ({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             className="w-full px-3 py-2 rounded-xl border border-[#dce6ef] bg-[#f8fafc] font-mono text-xs text-[#23395b] outline-none"
-            placeholder="Código LaTeX (ej: \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix})"
+            placeholder="Código LaTeX o texto"
           />
-          <span className="text-[10px] text-[#94a3b8]">Modo avanzado de código directo</span>
         </div>
       ) : (
         <div className="flex items-center justify-between flex-wrap gap-4 py-1">
+          {/* Natural scalar / number input (e.g. 4, 2+2, x, whatever) */}
+          {format === "scalar_text" && (
+            <div className="flex-1 min-w-[200px]">
+              <input
+                type="text"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder="Escribe la respuesta libre (ej: 4, 5, 2+2, -3 o texto)"
+                className="w-full px-4 py-2.5 rounded-xl border border-[#cbd5e1] bg-[#f8fafc] focus:bg-white text-base font-bold text-[#23395b] outline-none focus:border-[#218653] transition-all"
+              />
+            </div>
+          )}
+
           {/* Natural visual matrix inputs */}
           {format === "matrix_2x2" && (
-            <div className="flex items-center gap-1.5 bg-[#f8fafc] p-2 rounded-xl border border-[#e2e8f0]">
-              <span className="text-3xl font-light text-[#64748b] select-none pl-1">⎛</span>
-              <div className="grid grid-cols-2 gap-1.5">
-                <input
-                  type="text"
-                  value={parsedMatrix.a}
-                  onChange={(e) => handleMatrixCellChange("a", e.target.value)}
-                  placeholder="0"
-                  className="w-14 h-9 text-center font-bold text-sm bg-white rounded-lg border border-[#cbd5e1] focus:border-[#23395b] text-[#23395b] outline-none shadow-xs"
-                  title="Fila 1, Columna 1"
-                />
-                <input
-                  type="text"
-                  value={parsedMatrix.b}
-                  onChange={(e) => handleMatrixCellChange("b", e.target.value)}
-                  placeholder="0"
-                  className="w-14 h-9 text-center font-bold text-sm bg-white rounded-lg border border-[#cbd5e1] focus:border-[#23395b] text-[#23395b] outline-none shadow-xs"
-                  title="Fila 1, Columna 2"
-                />
-                <input
-                  type="text"
-                  value={parsedMatrix.c}
-                  onChange={(e) => handleMatrixCellChange("c", e.target.value)}
-                  placeholder="0"
-                  className="w-14 h-9 text-center font-bold text-sm bg-white rounded-lg border border-[#cbd5e1] focus:border-[#23395b] text-[#23395b] outline-none shadow-xs"
-                  title="Fila 2, Columna 1"
-                />
-                <input
-                  type="text"
-                  value={parsedMatrix.d}
-                  onChange={(e) => handleMatrixCellChange("d", e.target.value)}
-                  placeholder="0"
-                  className="w-14 h-9 text-center font-bold text-sm bg-white rounded-lg border border-[#cbd5e1] focus:border-[#23395b] text-[#23395b] outline-none shadow-xs"
-                  title="Fila 2, Columna 2"
-                />
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-1.5 bg-[#f8fafc] p-2 rounded-xl border border-[#e2e8f0]">
+                <span className="text-3xl font-light text-[#64748b] select-none pl-1">⎛</span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <input
+                    type="text"
+                    value={parsedMatrix.a}
+                    onChange={(e) => handleMatrixCellChange("a", e.target.value)}
+                    placeholder="0"
+                    className="w-14 h-9 text-center font-bold text-sm bg-white rounded-lg border border-[#cbd5e1] focus:border-[#218653] text-[#23395b] outline-none shadow-xs"
+                    title="Fila 1, Columna 1"
+                  />
+                  <input
+                    type="text"
+                    value={parsedMatrix.b}
+                    onChange={(e) => handleMatrixCellChange("b", e.target.value)}
+                    placeholder="0"
+                    className="w-14 h-9 text-center font-bold text-sm bg-white rounded-lg border border-[#cbd5e1] focus:border-[#218653] text-[#23395b] outline-none shadow-xs"
+                    title="Fila 1, Columna 2"
+                  />
+                  <input
+                    type="text"
+                    value={parsedMatrix.c}
+                    onChange={(e) => handleMatrixCellChange("c", e.target.value)}
+                    placeholder="0"
+                    className="w-14 h-9 text-center font-bold text-sm bg-white rounded-lg border border-[#cbd5e1] focus:border-[#218653] text-[#23395b] outline-none shadow-xs"
+                    title="Fila 2, Columna 1"
+                  />
+                  <input
+                    type="text"
+                    value={parsedMatrix.d}
+                    onChange={(e) => handleMatrixCellChange("d", e.target.value)}
+                    placeholder="0"
+                    className="w-14 h-9 text-center font-bold text-sm bg-white rounded-lg border border-[#cbd5e1] focus:border-[#218653] text-[#23395b] outline-none shadow-xs"
+                    title="Fila 2, Columna 2"
+                  />
+                </div>
+                <span className="text-3xl font-light text-[#64748b] select-none pr-1">⎞</span>
               </div>
-              <span className="text-3xl font-light text-[#64748b] select-none pr-1">⎞</span>
+              <button
+                type="button"
+                onClick={() => handleFormatChange("scalar_text")}
+                className="text-xs text-[#64748b] hover:text-[#218653] underline font-semibold"
+              >
+                Cambiar a respuesta simple (ej: 4)
+              </button>
             </div>
           )}
 
           {/* Natural visual vector inputs */}
           {format === "vector_2d" && (
-            <div className="flex items-center gap-1.5 bg-[#f8fafc] p-2 rounded-xl border border-[#e2e8f0]">
-              <span className="text-3xl font-light text-[#64748b] select-none pl-1">⎛</span>
-              <div className="flex flex-col gap-1.5">
-                <input
-                  type="text"
-                  value={parsedVector.x}
-                  onChange={(e) => handleVectorCellChange("x", e.target.value)}
-                  placeholder="x"
-                  className="w-16 h-9 text-center font-bold text-sm bg-white rounded-lg border border-[#cbd5e1] focus:border-[#23395b] text-[#23395b] outline-none shadow-xs"
-                  title="Componente X"
-                />
-                <input
-                  type="text"
-                  value={parsedVector.y}
-                  onChange={(e) => handleVectorCellChange("y", e.target.value)}
-                  placeholder="y"
-                  className="w-16 h-9 text-center font-bold text-sm bg-white rounded-lg border border-[#cbd5e1] focus:border-[#23395b] text-[#23395b] outline-none shadow-xs"
-                  title="Componente Y"
-                />
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-1.5 bg-[#f8fafc] p-2 rounded-xl border border-[#e2e8f0]">
+                <span className="text-3xl font-light text-[#64748b] select-none pl-1">⎛</span>
+                <div className="flex flex-col gap-1.5">
+                  <input
+                    type="text"
+                    value={parsedVector.x}
+                    onChange={(e) => handleVectorCellChange("x", e.target.value)}
+                    placeholder="x"
+                    className="w-16 h-9 text-center font-bold text-sm bg-white rounded-lg border border-[#cbd5e1] focus:border-[#218653] text-[#23395b] outline-none shadow-xs"
+                    title="Componente X"
+                  />
+                  <input
+                    type="text"
+                    value={parsedVector.y}
+                    onChange={(e) => handleVectorCellChange("y", e.target.value)}
+                    placeholder="y"
+                    className="w-16 h-9 text-center font-bold text-sm bg-white rounded-lg border border-[#cbd5e1] focus:border-[#218653] text-[#23395b] outline-none shadow-xs"
+                    title="Componente Y"
+                  />
+                </div>
+                <span className="text-3xl font-light text-[#64748b] select-none pr-1">⎞</span>
               </div>
-              <span className="text-3xl font-light text-[#64748b] select-none pr-1">⎞</span>
-            </div>
-          )}
-
-          {/* Natural scalar / number input */}
-          {format === "scalar_text" && (
-            <div className="flex-1 max-w-sm">
-              <input
-                type="text"
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                placeholder="Escribe el número o valor (ej: 5, -2, 3/4)"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-[#cbd5e1] bg-[#f8fafc] focus:bg-white text-sm font-bold text-[#23395b] outline-none"
-              />
+              <button
+                type="button"
+                onClick={() => handleFormatChange("scalar_text")}
+                className="text-xs text-[#64748b] hover:text-[#218653] underline font-semibold"
+              >
+                Cambiar a respuesta simple (ej: 4)
+              </button>
             </div>
           )}
 
@@ -240,7 +262,7 @@ export const VisualOptionEditor: React.FC<VisualOptionEditorProps> = ({
               Vista:
             </span>
             <div className="text-sm font-bold text-[#23395b]">
-              <MathRenderer latex={value} />
+              <MathRenderer latex={value || "(vacío)"} />
             </div>
           </div>
         </div>

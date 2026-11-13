@@ -426,6 +426,11 @@ describe("Visual Math Parser & Natural Language Editor (visual-parser.ts)", () =
     const cleaned = cleanLatexToNaturalText(raw);
     expect(cleaned).not.toContain("\\[6pt]");
     expect(cleaned).toContain("\n\n");
+
+    // Also cleans $k = 2$ and **bold**
+    const raw2 = "¿Cuál es la matriz de **escalamiento uniforme** con factor de escala $k = 2$?";
+    const cleaned2 = cleanLatexToNaturalText(raw2);
+    expect(cleaned2).toBe("¿Cuál es la matriz de escalamiento uniforme con factor de escala k = 2?");
   });
 
   it("extracts matrices and vectors from question prompts for visual editing", async () => {

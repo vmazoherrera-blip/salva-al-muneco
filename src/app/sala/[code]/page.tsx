@@ -98,7 +98,12 @@ function RoomPageContent() {
       setEvents(data.events || []);
       setModeratorStats(data.moderatorStats);
       if (data.masterQuestions) {
-        setMasterQuestions(data.masterQuestions);
+        setMasterQuestions((prev) => {
+          if (prev && prev.length > 0 && JSON.stringify(prev) === JSON.stringify(data.masterQuestions)) {
+            return prev;
+          }
+          return data.masterQuestions;
+        });
       }
       setCurrentQuestion(data.currentQuestion);
 

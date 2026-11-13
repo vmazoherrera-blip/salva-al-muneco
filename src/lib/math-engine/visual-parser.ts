@@ -97,7 +97,8 @@ export function detectMathFormat(latex: string): MathElementFormat {
 }
 
 /**
- * Cleans unwanted LaTeX formatting artifacts (e.g. \\[6pt], \\[4pt]) into natural paragraphs.
+ * Cleans unwanted LaTeX formatting artifacts (e.g. \\[6pt], \\[4pt]) into natural paragraphs,
+ * and strips unnecessary math dollar signs/markdown asterisks for natural reading.
  */
 export function cleanLatexToNaturalText(latex: string): string {
   if (!latex) return "";
@@ -106,6 +107,11 @@ export function cleanLatexToNaturalText(latex: string): string {
     .replace(/\\\\\[\d+px\]/g, "\n\n")
     .replace(/\\\[\d+pt\]/g, "\n\n")
     .replace(/\\\[\d+px\]/g, "\n\n")
+    .replace(/\\mathbb\{R\}\^2/g, "ℝ²")
+    // Clean dollar signs wrapping simple variable names or values: $k = 2$, $k$, $x$, $y$, $v$, $A$
+    .replace(/\$([A-Za-z0-9_'\s=+-]+)\$/g, "$1")
+    // Clean markdown double asterisks for bold
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/\n{3,}/g, "\n\n");
 }
 

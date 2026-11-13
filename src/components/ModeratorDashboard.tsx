@@ -36,6 +36,7 @@ import {
   Save,
   Check,
   Sparkles,
+  RotateCcw,
 } from "lucide-react";
 
 interface ModeratorDashboardProps {
@@ -70,13 +71,24 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
   const [actionLoading, setActionLoading] = useState(false);
 
   // Question editing state
-  const [localQuestions, setLocalQuestions] = useState<QuestionData[]>(masterQuestions);
+  const hasInitializedRef = React.useRef(false);
+  const isDirtyRef = React.useRef(false);
+
+  const [localQuestions, setLocalQuestions] = useState<QuestionData[]>(() => {
+    return (masterQuestions || []).map((q) => ({
+      ...q,
+      promptLatex: cleanLatexToNaturalText(q.promptLatex),
+      explanationLatex: cleanLatexToNaturalText(q.explanationLatex),
+    }));
+  });
   const [selectedQIndex, setSelectedQIndex] = useState<number>(0);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [symbolabTarget, setSymbolabTarget] = useState<"prompt" | "explanation">("prompt");
 
   useEffect(() => {
-    if (masterQuestions && masterQuestions.length > 0) {
+    // Only initialize once when masterQuestions first loads, and NEVER overwrite if user has made edits
+    if (!hasInitializedRef.current && masterQuestions && masterQuestions.length > 0) {
+      hasInitializedRef.current = true;
       const cleaned = masterQuestions.map((q) => ({
         ...q,
         promptLatex: cleanLatexToNaturalText(q.promptLatex),
@@ -143,6 +155,7 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
           promptLatex: cleanLatexToNaturalText(q.promptLatex),
           explanationLatex: cleanLatexToNaturalText(q.explanationLatex),
         }));
+        isDirtyRef.current = false;
         setLocalQuestions(cleaned);
         if (onQuestionsUpdated) onQuestionsUpdated(cleaned);
         alert("¡Preguntas aleatorias generadas exitosamente!");
@@ -173,6 +186,7 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
       });
       const data = await res.json();
       if (data.success) {
+        isDirtyRef.current = false;
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
         if (onQuestionsUpdated) onQuestionsUpdated(localQuestions);
@@ -189,12 +203,37 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
 
   // Update a field in the currently selected question
   const updateCurrentQuestion = (patch: Partial<QuestionData>) => {
+    isDirtyRef.current = true;
     setLocalQuestions((prev) => {
       const copy = [...prev];
       if (copy[selectedQIndex]) {
         copy[selectedQIndex] = { ...copy[selectedQIndex], ...patch };
       }
       return copy;
+    });
+  };
+
+  // Set a clean simple question template (e.g. 2+2)
+  const handleLoadSimplePreset = () => {
+    isDirtyRef.current = true;
+    updateCurrentQuestion({
+      promptLatex: "¿Cuánto es 2 + 2?",
+      questionType: "multiple_choice",
+      optionsLatex: ["4", "5", "3", "22"],
+      correctAnswer: "4",
+      explanationLatex: "2 + 2 es igual a 4.",
+    });
+  };
+
+  // Clear current question to complete blank slate for total creative freedom
+  const handleClearQuestion = () => {
+    isDirtyRef.current = true;
+    updateCurrentQuestion({
+      promptLatex: "",
+      questionType: "multiple_choice",
+      optionsLatex: ["", "", "", ""],
+      correctAnswer: "",
+      explanationLatex: "",
     });
   };
 
@@ -705,7 +744,27 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
               </p>
             </div>
 
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={handleLoadSimplePreset}
+                className="px-3 py-2 rounded-xl bg-[#eef4fa] hover:bg-[#e2ecf5] text-xs font-bold text-[#23395b] flex items-center gap-1.5 transition-all shadow-xs"
+                title="Cargar ejemplo simple tipo 2+2"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-[#218653]" />
+                Plantilla Simple (2+2)
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClearQuestion}
+                className="px-3 py-2 rounded-xl border border-[#dce6ef] hover:bg-[#fff1f2] hover:border-[#fca5a5] text-xs font-bold text-[#64748b] hover:text-[#e11d48] flex items-center gap-1.5 transition-all"
+                title="Borrar todo para escribir desde cero"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Hoja en Blanco
+              </button>
+
               <button
                 onClick={handleRegenerateQuestions}
                 disabled={actionLoading}
@@ -937,22 +996,53 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
                       <textarea
                         rows={3}
                         value={currentQ.promptLatex}
-                        onChange={(e) => updateCurrentQuestion({ promptLatex: cleanLatexToNaturalText(e.target.value) })}
+                        onChange={(e) => updateCurrentQuestion({ promptLatex: e.target.value })}
                         className="w-full p-3.5 rounded-xl border border-[#dce6ef] bg-[#f8fafc] text-sm text-[#23395b] outline-none focus:border-[#218653]"
-                        placeholder="Escribe el enunciado de la pregunta en lenguaje natural..."
+                        placeholder="Escribe la pregunta en lenguaje natural (ej: ¿Cuánto es 2+2? o determina la rotación)..."
                       />
                     </div>
 
                     {/* Multiple Choice Options with Natural Visual Editors */}
                     {currentQ.questionType === "multiple_choice" && (
                       <div className="space-y-3">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
                           <label className="block text-xs font-bold uppercase tracking-wider text-[#64748b]">
-                            Opciones de Respuesta (Escribe solo números en las matrices):
+                            Opciones de Respuesta:
                           </label>
-                          <span className="text-[11px] text-[#218653] font-semibold">
-                            Modo visual interactivo activo
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[11px] text-[#64748b]">Formato de las 4 opciones:</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newOpts = ["4", "5", "3", "22"];
+                                updateCurrentQuestion({
+                                  optionsLatex: newOpts,
+                                  correctAnswer: newOpts[0],
+                                });
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-[#eef4fa] hover:bg-[#e2ecf5] text-[11px] font-bold text-[#23395b] transition-all shadow-xs"
+                            >
+                              Respuestas Simples (ej: 4)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newOpts = [
+                                  "\\begin{pmatrix} 1 & 0 \\\\ 0 & 1 \\end{pmatrix}",
+                                  "\\begin{pmatrix} 0 & 1 \\\\ 1 & 0 \\end{pmatrix}",
+                                  "\\begin{pmatrix} -1 & 0 \\\\ 0 & 1 \\end{pmatrix}",
+                                  "\\begin{pmatrix} 1 & 0 \\\\ 0 & -1 \\end{pmatrix}",
+                                ];
+                                updateCurrentQuestion({
+                                  optionsLatex: newOpts,
+                                  correctAnswer: newOpts[0],
+                                });
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-[#eef4fa] hover:bg-[#e2ecf5] text-[11px] font-bold text-[#23395b] transition-all shadow-xs"
+                            >
+                              Matrices 2×2
+                            </button>
+                          </div>
                         </div>
 
                         {(currentQ.optionsLatex || []).map((opt, optIdx) => {
@@ -1019,7 +1109,7 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
                         rows={3}
                         value={currentQ.explanationLatex}
                         onChange={(e) =>
-                          updateCurrentQuestion({ explanationLatex: cleanLatexToNaturalText(e.target.value) })
+                          updateCurrentQuestion({ explanationLatex: e.target.value })
                         }
                         className="w-full p-3.5 rounded-xl border border-[#dce6ef] bg-[#f8fafc] text-sm text-[#23395b] outline-none focus:border-[#218653]"
                         placeholder="Escribe la explicación matemática paso a paso..."
