@@ -1,0 +1,195 @@
+import { describe, it, expect } from "vitest";
+import { Fraction } from "../fraction";
+import { Matrix2x2, Vector2 } from "../matrix";
+import { validateAnswer } from "../validator";
+import {
+  generateQ1,
+  generateQ2,
+  generateQ3,
+  generateQ4,
+  generateQ5,
+  generateQ6,
+  generateQ7,
+  generateQ8,
+  generateQ9,
+  generateQ10,
+} from "../templates";
+import { generateMatchQuestions, sanitizeQuestionForClient } from "../generator";
+
+describe("Fraction arithmetic & conversions", () => {
+  it("simplifies fractions using GCD correctly", () => {
+    const f1 = new Fraction(6, 8);
+    expect(f1.num).toBe(3);
+    expect(f1.den).toBe(4);
+
+    const f2 = new Fraction(-4, -8);
+    expect(f2.num).toBe(1);
+    expect(f2.den).toBe(2);
+
+    const f3 = new Fraction(5, -10);
+    expect(f3.num).toBe(-1);
+    expect(f3.den).toBe(2);
+  });
+
+  it("handles basic arithmetic operations", () => {
+    const a = new Fraction(1, 2);
+    const b = new Fraction(1, 3);
+
+    expect(a.add(b).toString()).toBe("5/6");
+    expect(a.sub(b).toString()).toBe("1/6");
+    expect(a.mul(b).toString()).toBe("1/6");
+    expect(a.div(b).toString()).toBe("3/2");
+  });
+
+  it("throws on division by zero", () => {
+    expect(() => new Fraction(1, 0)).toThrow();
+    const a = new Fraction(1, 2);
+    const zero = new Fraction(0, 1);
+    expect(() => a.div(zero)).toThrow();
+  });
+
+  it("parses strings accurately (fractions, decimals, shorthand)", () => {
+    expect(Fraction.fromString("0.5")?.toNumber()).toBe(0.5);
+    expect(Fraction.fromString(".5")?.toNumber()).toBe(0.5);
+    expect(Fraction.fromString("1/2")?.toNumber()).toBe(0.5);
+    expect(Fraction.fromString("2/4")?.toNumber()).toBe(0.5);
+    expect(Fraction.fromString("-3/6")?.toNumber()).toBe(-0.5);
+    expect(Fraction.fromString("-0.5")?.toNumber()).toBe(-0.5);
+    expect(Fraction.fromString("3")?.toNumber()).toBe(3);
+  });
+});
+
+describe("Matrix and Vector operations", () => {
+  it("multiplies matrix by vector", () => {
+    // [1 2; 3 4] * [2; 3] = [1*2 + 2*3; 3*2 + 4*3] = [8; 18]
+    const M = new Matrix2x2(1, 2, 3, 4);
+    const v = new Vector2(2, 3);
+    const res = M.mulVector(v);
+    expect(res.x.toNumber()).toBe(8);
+    expect(res.y.toNumber()).toBe(18);
+  });
+
+  it("calculates 2x2 determinant correctly", () => {
+    // det([2 5; 1 3]) = 2*3 - 5*1 = 1
+    const M = new Matrix2x2(2, 5, 1, 3);
+    expect(M.det().toNumber()).toBe(1);
+  });
+
+  it("multiplies matrices respecting non-commutativity", () => {
+    const A = new Matrix2x2(1, 2, 0, 1);
+    const B = new Matrix2x2(2, 0, 1, 3);
+    const AB = A.mulMatrix(B);
+    const BA = B.mulMatrix(A);
+
+    expect(AB.equals(BA)).toBe(false);
+  });
+
+  it("verifies notable rotation matrices", () => {
+    const r90 = Matrix2x2.rotate90();
+    const v = new Vector2(1, 0);
+    const vRot = r90.mulVector(v);
+    // (1, 0) rotated 90 deg CCW should be (0, 1)
+    expect(vRot.x.toNumber()).toBe(0);
+    expect(vRot.y.toNumber()).toBe(1);
+  });
+});
+
+describe("Equivalence validator (validator.ts)", () => {
+  it("accepts reduced, unreduced fractions, and decimals", () => {
+    expect(validateAnswer("0.5", "1/2", "numeric")).toBe(true);
+    expect(validateAnswer(".5", "1/2", "numeric")).toBe(true);
+    expect(validateAnswer("1/2", "0.5", "numeric")).toBe(true);
+    expect(validateAnswer("2/4", "0.5", "numeric")).toBe(true);
+    expect(validateAnswer("-3/6", "-0.5", "numeric")).toBe(true);
+    expect(validateAnswer("-0.5", "-1/2", "numeric")).toBe(true);
+  });
+
+  it("rejects wrong answers", () => {
+    expect(validateAnswer("0.51", "1/2", "numeric")).toBe(false);
+    expect(validateAnswer("3/4", "1/2", "numeric")).toBe(false);
+    expect(validateAnswer("-1/2", "1/2", "numeric")).toBe(false);
+  });
+
+  it("validates multiple choice strings correctly", () => {
+    const latex = "\\begin{pmatrix} 1 & 0 \\\\ 0 & -1 \\end{pmatrix}";
+    expect(validateAnswer(latex, latex, "multiple_choice")).toBe(true);
+    expect(validateAnswer(" A ", "A", "multiple_choice")).toBe(true);
+    expect(validateAnswer("b", "B", "multiple_choice")).toBe(true);
+  });
+});
+
+describe("Question Generator (100 random runs per level)", () => {
+  it("Level 1 (Básico: Q1, Q2, Q3) generates without errors or duplicate options", () => {
+    for (let i = 0; i < 100; i++) {
+      const q1 = generateQ1();
+      expect(q1.optionsLatex).toBeDefined();
+      expect(q1.optionsLatex?.length).toBe(4);
+      expect(new Set(q1.optionsLatex).size).toBe(4);
+      expect(q1.optionsLatex?.includes(q1.correctAnswer)).toBe(true);
+
+      const q2 = generateQ2();
+      expect(q2.optionsLatex).toBeDefined();
+      expect(q2.optionsLatex?.length).toBe(4);
+      expect(new Set(q2.optionsLatex).size).toBe(4);
+      expect(q2.optionsLatex?.includes(q2.correctAnswer)).toBe(true);
+
+      const q3 = generateQ3();
+      expect(q3.correctAnswer).toBeDefined();
+      expect(isNaN(Number(q3.correctAnswer))).toBe(false);
+    }
+  });
+
+  it("Level 2 (Intermedio: Q4, Q5, Q6, Q7) generates without errors or duplicate options", () => {
+    for (let i = 0; i < 100; i++) {
+      const q4 = generateQ4();
+      expect(q4.optionsLatex?.length).toBe(4);
+      expect(new Set(q4.optionsLatex).size).toBe(4);
+      expect(q4.optionsLatex?.includes(q4.correctAnswer)).toBe(true);
+
+      const q5 = generateQ5();
+      expect(q5.optionsLatex?.length).toBe(4);
+      expect(new Set(q5.optionsLatex).size).toBe(4);
+      expect(q5.optionsLatex?.includes(q5.correctAnswer)).toBe(true);
+
+      const q6 = generateQ6();
+      expect(q6.correctAnswer).toBeDefined();
+      expect(isNaN(Number(q6.correctAnswer))).toBe(false);
+
+      const q7 = generateQ7();
+      expect(q7.correctAnswer).toBeDefined();
+      expect(isNaN(Number(q7.correctAnswer))).toBe(false);
+    }
+  });
+
+  it("Level 3 (Avanzado: Q8, Q9, Q10) generates without errors or duplicate options", () => {
+    for (let i = 0; i < 100; i++) {
+      const q8 = generateQ8();
+      expect(q8.optionsLatex?.length).toBe(4);
+      expect(new Set(q8.optionsLatex).size).toBe(4);
+      expect(q8.optionsLatex?.includes(q8.correctAnswer)).toBe(true);
+
+      const q9 = generateQ9();
+      expect(q9.optionsLatex?.length).toBe(4);
+      expect(new Set(q9.optionsLatex).size).toBe(4);
+      expect(q9.optionsLatex?.includes(q9.correctAnswer)).toBe(true);
+
+      const q10 = generateQ10();
+      expect(q10.optionsLatex?.length).toBe(4);
+      expect(new Set(q10.optionsLatex).size).toBe(4);
+      expect(q10.optionsLatex?.includes(q10.correctAnswer)).toBe(true);
+    }
+  });
+
+  it("generates a complete 10-question match with correct indices and client sanitization", () => {
+    const match = generateMatchQuestions();
+    expect(match.length).toBe(10);
+
+    for (let i = 0; i < 10; i++) {
+      expect(match[i].questionIndex).toBe(i);
+      const client = sanitizeQuestionForClient(match[i]);
+      expect((client as unknown as Record<string, unknown>).correctAnswer).toBeUndefined();
+      expect((client as unknown as Record<string, unknown>).explanationLatex).toBeUndefined();
+      expect(client.promptLatex).toBeDefined();
+    }
+  });
+});

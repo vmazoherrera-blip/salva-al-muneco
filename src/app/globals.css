@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+:root {
+  --background: #eef4fa;
+  --foreground: #23395b;
+}
+
+body {
+  background-color: #eef4fa;
+  color: #23395b;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+}
+
+/* KaTeX custom sizing and contrast */
+.math-render .katex {
+  font-size: 1.15em;
+  color: #1e293b;
+}
+
+.math-render .katex-display {
+  margin: 0.75em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+}
+
+/* Custom smooth transitions */
+.transition-card {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
