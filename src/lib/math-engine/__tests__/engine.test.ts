@@ -376,3 +376,47 @@ describe("Room Questions and Solucionario (game-store)", () => {
     expect(prompts1).not.toBe(prompts2);
   });
 });
+
+describe("Visual Math Parser & Natural Language Editor (visual-parser.ts)", () => {
+  it("correctly parses 2x2 matrices into 4 visual cells and builds LaTeX back", async () => {
+    const { parseMatrix2x2, buildMatrix2x2, detectMathFormat } = await import(
+      "../visual-parser"
+    );
+
+    const mLatex = "\\begin{pmatrix} 5 & 0 \\\\ 0 & 5 \\end{pmatrix}";
+    expect(detectMathFormat(mLatex)).toBe("matrix_2x2");
+
+    const parsed = parseMatrix2x2(mLatex);
+    expect(parsed).toEqual({ a: "5", b: "0", c: "0", d: "5" });
+
+    const rebuilt = buildMatrix2x2("5", "0", "0", "5");
+    expect(rebuilt).toBe("\\begin{pmatrix} 5 & 0 \\\\ 0 & 5 \\end{pmatrix}");
+  });
+
+  it("correctly parses 2D vectors and distinguishes them from matrices", async () => {
+    const { parseVector2, buildVector2, detectMathFormat } = await import(
+      "../visual-parser"
+    );
+
+    const vLatex = "\\begin{pmatrix} 3 \\\\ -2 \\end{pmatrix}";
+    expect(detectMathFormat(vLatex)).toBe("vector_2d");
+
+    const parsed = parseVector2(vLatex);
+    expect(parsed).toEqual({ x: "3", y: "-2" });
+
+    const rebuilt = buildVector2("3", "-2");
+    expect(rebuilt).toBe("\\begin{pmatrix} 3 \\\\ -2 \\end{pmatrix}");
+
+    // Matrix should not be detected as vector
+    const mLatex = "\\begin{pmatrix} 1 & 0 \\\\ 0 & 1 \\end{pmatrix}";
+    expect(parseVector2(mLatex)).toBeNull();
+  });
+
+  it("detects scalar / plain text inputs accurately", async () => {
+    const { detectMathFormat } = await import("../visual-parser");
+
+    expect(detectMathFormat("42")).toBe("scalar_text");
+    expect(detectMathFormat("-3/4")).toBe("scalar_text");
+    expect(detectMathFormat("Opción de texto")).toBe("scalar_text");
+  });
+});
