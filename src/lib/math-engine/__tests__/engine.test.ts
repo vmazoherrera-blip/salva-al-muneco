@@ -336,4 +336,43 @@ describe("Room Questions and Solucionario (game-store)", () => {
     expect(updated[0].promptLatex).toBe("¿Pregunta personalizada?");
     expect(updated[0].correctAnswer).toBe("42");
   });
+
+  it("strictly validates the moderator secret key 'que increible juego'", async () => {
+    const { isValidModeratorKey, createGameRoom } = await import("../../game/game-store");
+
+    expect(isValidModeratorKey("que increible juego")).toBe(true);
+    expect(isValidModeratorKey("que increíble juego")).toBe(true); // with accent
+    expect(isValidModeratorKey("  QUE INCREIBLE JUEGO  ")).toBe(true); // case-insensitive & trimmed
+    expect(isValidModeratorKey("clave incorrecta")).toBe(false);
+    expect(isValidModeratorKey("")).toBe(false);
+    expect(isValidModeratorKey(undefined)).toBe(false);
+
+    // createGameRoom rejects invalid key
+    await expect(createGameRoom(60, 30, "clave_invalida")).rejects.toThrow("Clave secreta incorrecta");
+    await expect(createGameRoom(60, 30, "")).rejects.toThrow("Clave secreta incorrecta");
+
+    // createGameRoom succeeds with secret key
+    const result = await createGameRoom(60, 30, "que increible juego");
+    expect(result.room).toBeDefined();
+    expect(result.room.code).toBeDefined();
+    expect(result.hostToken).toBeDefined();
+  });
+
+  it("generates different randomized questions for each new room", async () => {
+    const { createGameRoom, getRoomMasterQuestions } = await import("../../game/game-store");
+
+    const r1 = await createGameRoom(60, 30, "que increible juego");
+    const r2 = await createGameRoom(60, 30, "que increible juego");
+
+    const q1 = getRoomMasterQuestions(r1.room.code);
+    const q2 = getRoomMasterQuestions(r2.room.code);
+
+    expect(q1).toHaveLength(10);
+    expect(q2).toHaveLength(10);
+
+    // Compare prompt strings across questions to ensure randomization
+    const prompts1 = q1.map((q) => q.promptLatex).join(" | ");
+    const prompts2 = q2.map((q) => q.promptLatex).join(" | ");
+    expect(prompts1).not.toBe(prompts2);
+  });
 });

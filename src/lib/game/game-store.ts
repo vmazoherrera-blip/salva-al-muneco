@@ -152,10 +152,33 @@ export function sortPlayersForLeaderboard(players: Player[]): LeaderboardEntry[]
 // GAME STORE OPERATIONS
 // ---------------------------------------------------------------------------
 
-export async function createGameRoom(timePerQuestion: number = 60, maxPlayers: number = 30) {
+export const MODERATOR_SECRET_KEY = "que increible juego";
+
+export function isValidModeratorKey(input?: string): boolean {
+  if (!input) return false;
+  const clean = input
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  return clean === MODERATOR_SECRET_KEY;
+}
+
+export async function createGameRoom(
+  timePerQuestion: number = 60,
+  maxPlayers: number = 30,
+  secretKey?: string
+) {
+  if (!isValidModeratorKey(secretKey)) {
+    throw new Error("Clave secreta incorrecta. Solo docentes o moderadores autorizados pueden crear salas.");
+  }
+
   const code = memoryDb.generateCode();
   const hostToken = "host_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
   const clampedTime = Math.min(120, Math.max(30, timePerQuestion));
+
+  // Generate fresh, completely unique randomized questions for this specific room
+  regenerateRoomMasterQuestions(code);
 
   if (isRealSupabaseAvailable() && adminClient) {
     try {
@@ -172,7 +195,6 @@ export async function createGameRoom(timePerQuestion: number = 60, maxPlayers: n
         .single();
 
       if (!error && data) {
-        getRoomMasterQuestions(code);
         return { room: data as Room, hostToken };
       }
     } catch (e) {
@@ -193,7 +215,6 @@ export async function createGameRoom(timePerQuestion: number = 60, maxPlayers: n
 
   memoryDb.rooms.set(code, room);
   memoryDb.roomPlayers.set(room.id, []);
-  getRoomMasterQuestions(code);
 
   addRoomEvent(code, {
     room_code: code,

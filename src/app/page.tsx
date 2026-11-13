@@ -15,6 +15,7 @@ import {
   RotateCcw,
   CheckCircle2,
   Award,
+  Lock,
 } from "lucide-react";
 
 export default function HomePage() {
@@ -26,6 +27,7 @@ export default function HomePage() {
   // Form states
   const [joinCode, setJoinCode] = useState("");
   const [nickname, setNickname] = useState("");
+  const [moderatorSecretKey, setModeratorSecretKey] = useState("");
   const [timePerQuestion, setTimePerQuestion] = useState(60);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +59,11 @@ export default function HomePage() {
       return;
     }
 
+    if (!moderatorSecretKey.trim()) {
+      setError("Por favor ingresa la clave secreta de moderador.");
+      return;
+    }
+
     if (containsProfanity(nickname)) {
       setError("El apodo contiene palabras inapropiadas o no permitidas. Por favor usa un nombre respetuoso.");
       return;
@@ -66,11 +73,14 @@ export default function HomePage() {
     setError(null);
 
     try {
-      // 1. Create Room
+      // 1. Create Room with Moderator Secret Key
       const res = await fetch("/api/rooms/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ timePerQuestion }),
+        body: JSON.stringify({
+          timePerQuestion,
+          secretKey: moderatorSecretKey.trim(),
+        }),
       });
       const data = await res.json();
 
@@ -358,6 +368,27 @@ export default function HomePage() {
                     required
                     className="w-full px-4 py-3 rounded-xl bg-[#f8fafc] border-2 border-[#dce6ef] focus:border-[#23395b] focus:bg-white text-base font-semibold text-[#23395b] placeholder:text-[#94a3b8] transition-all outline-none"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#64748b] mb-1.5 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5 text-[#218653]" />
+                      Clave Secreta de Moderador / Docente
+                    </span>
+                    <span className="text-[11px] text-[#218653] font-bold">Autorización Requerida</span>
+                  </label>
+                  <input
+                    type="password"
+                    value={moderatorSecretKey}
+                    onChange={(e) => setModeratorSecretKey(e.target.value)}
+                    placeholder="Ingresa la clave secreta autorizada"
+                    required
+                    className="w-full px-4 py-3 rounded-xl bg-[#f8fafc] border-2 border-[#dce6ef] focus:border-[#218653] focus:bg-white text-base font-semibold text-[#23395b] placeholder:text-[#94a3b8] transition-all outline-none"
+                  />
+                  <p className="text-[11px] text-[#64748b] mt-1">
+                    Solo docentes con la clave autorizada pueden crear salas y acceder al panel de supervisión y solucionario.
+                  </p>
                 </div>
 
                 <div>
