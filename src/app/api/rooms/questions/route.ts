@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const questions = getRoomMasterQuestions(code);
+    const questions = await getRoomMasterQuestions(code);
     return NextResponse.json({ success: true, questions });
   } catch (error: any) {
     return NextResponse.json(
@@ -41,12 +41,12 @@ export async function POST(request: Request) {
     }
 
     if (action === "regenerate") {
-      const freshQuestions = regenerateRoomMasterQuestions(code);
+      const freshQuestions = await regenerateRoomMasterQuestions(code);
       return NextResponse.json({ success: true, questions: freshQuestions });
     }
 
     if (action === "set" && Array.isArray(questions)) {
-      setRoomMasterQuestions(code, questions);
+      await setRoomMasterQuestions(code, questions);
       return NextResponse.json({ success: true, questions });
     }
 

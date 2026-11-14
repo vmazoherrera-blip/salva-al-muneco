@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get("code");
     const playerToken = searchParams.get("playerToken") || undefined;
     const hostToken = searchParams.get("hostToken") || undefined;
+    const nickname = searchParams.get("nickname") || undefined;
 
     if (!code) {
       return NextResponse.json(
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const state = await getGameRoomState(code, playerToken, hostToken);
+    const state = await getGameRoomState(code, playerToken, hostToken, nickname);
 
     if ("error" in state && state.error) {
       return NextResponse.json({ success: false, error: state.error }, { status: 404 });

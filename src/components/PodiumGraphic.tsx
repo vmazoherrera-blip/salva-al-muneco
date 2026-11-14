@@ -163,6 +163,15 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
               {/* Stats badges */}
               <div className="flex items-center gap-3">
                 <div className="px-4 py-2 bg-white rounded-xl border border-[#fde68a] text-center shadow-sm">
+                  <span className="block text-2xl font-black text-[#23395b]">
+                    {firstPlace.score}
+                    <span className="text-xs font-normal text-[#64748b]"> pts</span>
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
+                    Puntaje
+                  </span>
+                </div>
+                <div className="px-4 py-2 bg-white rounded-xl border border-[#fde68a] text-center shadow-sm">
                   <span className="block text-2xl font-black text-[#218653]">
                     {firstPlace.correct_count}
                     <span className="text-xs font-normal text-[#64748b]">/10</span>
@@ -201,7 +210,9 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
                   <span className="font-bold text-sm text-[#1e293b] truncate max-w-[130px] text-center">
                     {secondPlace.nickname}
                   </span>
-                  <span className="text-xs text-[#218653] font-bold">{secondPlace.correct_count}/10 aciertos</span>
+                  <span className="text-xs text-[#218653] font-bold">
+                    {secondPlace.score} pts • {secondPlace.correct_count}/10
+                  </span>
                   <span className="text-[10px] text-[#64748b]">
                     {(secondPlace.total_time_ms / 1000).toFixed(1)}s
                   </span>
@@ -225,7 +236,9 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
                   <span className="font-extrabold text-base text-[#1e293b] truncate max-w-[150px] text-center">
                     {firstPlace.nickname}
                   </span>
-                  <span className="text-xs text-[#218653] font-bold">{firstPlace.correct_count}/10 aciertos</span>
+                  <span className="text-xs text-[#218653] font-bold">
+                    {firstPlace.score} pts • {firstPlace.correct_count}/10
+                  </span>
                   <span className="text-[10px] text-[#64748b]">
                     {(firstPlace.total_time_ms / 1000).toFixed(1)}s
                   </span>
@@ -247,7 +260,9 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
                   <span className="font-bold text-sm text-[#1e293b] truncate max-w-[130px] text-center">
                     {thirdPlace.nickname}
                   </span>
-                  <span className="text-xs text-[#218653] font-bold">{thirdPlace.correct_count}/10 aciertos</span>
+                  <span className="text-xs text-[#218653] font-bold">
+                    {thirdPlace.score} pts • {thirdPlace.correct_count}/10
+                  </span>
                   <span className="text-[10px] text-[#64748b]">
                     {(thirdPlace.total_time_ms / 1000).toFixed(1)}s
                   </span>
@@ -310,7 +325,8 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
                       )}
                     </div>
                     <div className="flex items-center gap-3 font-semibold text-[#334155]">
-                      <span className="text-[#218653] font-bold">{player.correct_count} / 10</span>
+                      <span className="font-extrabold text-[#23395b]">{player.score} pts</span>
+                      <span className="text-[#218653] font-bold text-xs">{player.correct_count} / 10</span>
                       <span className="inline-flex items-center gap-1 text-[#64748b] text-[11px]">
                         <Clock className="w-3 h-3" />
                         {(player.total_time_ms / 1000).toFixed(1)}s

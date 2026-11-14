@@ -309,7 +309,7 @@ describe("Room Questions and Solucionario (game-store)", () => {
     } = await import("../../game/game-store");
 
     const code = "TEST01";
-    const qList = getRoomMasterQuestions(code);
+    const qList = await getRoomMasterQuestions(code);
     expect(qList).toHaveLength(10);
 
     for (const q of qList) {
@@ -320,7 +320,7 @@ describe("Room Questions and Solucionario (game-store)", () => {
     }
 
     // Regenerate
-    const regenerated = regenerateRoomMasterQuestions(code);
+    const regenerated = await regenerateRoomMasterQuestions(code);
     expect(regenerated).toHaveLength(10);
 
     // Custom questions
@@ -331,8 +331,8 @@ describe("Room Questions and Solucionario (game-store)", () => {
       correctAnswer: "42",
       explanationLatex: "Explicación personalizada",
     };
-    setRoomMasterQuestions(code, customList);
-    const updated = getRoomMasterQuestions(code);
+    await setRoomMasterQuestions(code, customList);
+    const updated = await getRoomMasterQuestions(code);
     expect(updated[0].promptLatex).toBe("¿Pregunta personalizada?");
     expect(updated[0].correctAnswer).toBe("42");
   });
@@ -364,8 +364,8 @@ describe("Room Questions and Solucionario (game-store)", () => {
     const r1 = await createGameRoom(60, 30, "que increible juego");
     const r2 = await createGameRoom(60, 30, "que increible juego");
 
-    const q1 = getRoomMasterQuestions(r1.room.code);
-    const q2 = getRoomMasterQuestions(r2.room.code);
+    const q1 = await getRoomMasterQuestions(r1.room.code);
+    const q2 = await getRoomMasterQuestions(r2.room.code);
 
     expect(q1).toHaveLength(10);
     expect(q2).toHaveLength(10);

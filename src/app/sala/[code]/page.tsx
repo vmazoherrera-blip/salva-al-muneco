@@ -80,10 +80,14 @@ function RoomPageContent() {
   const fetchRoomState = useCallback(async () => {
     if (!roomCode) return;
     try {
-      const token = localStorage.getItem("doll_player_token") || "";
+      const token =
+        localStorage.getItem("doll_player_token_" + roomCode) ||
+        localStorage.getItem("doll_player_token") ||
+        "";
+      const storedNick = localStorage.getItem("doll_nickname") || "";
       const currentHost = hostToken || localStorage.getItem("doll_host_token_" + roomCode) || "";
       const res = await fetch(
-        `/api/rooms/state?code=${roomCode}&playerToken=${token}&hostToken=${currentHost}`
+        `/api/rooms/state?code=${roomCode}&playerToken=${token}&hostToken=${currentHost}&nickname=${encodeURIComponent(storedNick)}`
       );
       const data = await res.json();
 
@@ -94,6 +98,11 @@ function RoomPageContent() {
 
       setRoom(data.room);
       setPlayer(data.player);
+      if (data.player?.player_token) {
+        setPlayerToken(data.player.player_token);
+        localStorage.setItem("doll_player_token_" + roomCode, data.player.player_token);
+        localStorage.setItem("doll_player_token", data.player.player_token);
+      }
       setLeaderboard(data.leaderboard || []);
       setEvents(data.events || []);
       setModeratorStats(data.moderatorStats);
@@ -118,7 +127,10 @@ function RoomPageContent() {
 
   // Initial load & host detection
   useEffect(() => {
-    const token = localStorage.getItem("doll_player_token") || "";
+    const token =
+      localStorage.getItem("doll_player_token_" + roomCode) ||
+      localStorage.getItem("doll_player_token") ||
+      "";
     setPlayerToken(token);
 
     const storedHostToken = localStorage.getItem("doll_host_token_" + roomCode);
@@ -214,6 +226,7 @@ function RoomPageContent() {
         body: JSON.stringify({
           code: roomCode,
           hostToken: storedHostToken,
+          customQuestions: masterQuestions && masterQuestions.length > 0 ? masterQuestions : undefined,
         }),
       });
       const data = await res.json();
@@ -744,7 +757,11 @@ function RoomPageContent() {
 
               <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                 {leaderboard.map((item) => {
-                  const isCurrent = item.id === player?.id || (item.player_token ? item.player_token === playerToken : false);
+                  const storedNick = typeof window !== "undefined" ? localStorage.getItem("doll_nickname") || "" : "";
+                  const isCurrent =
+                    item.id === player?.id ||
+                    (item.player_token ? item.player_token === playerToken : false) ||
+                    (storedNick ? item.nickname.toLowerCase() === storedNick.toLowerCase() : false);
                   const isDead = item.status === "eliminado" || item.danger_parts >= 6;
                   const isSaved = item.danger_parts === 0;
 
@@ -778,7 +795,10 @@ function RoomPageContent() {
                             {item.danger_parts}/6 piezas
                           </span>
                         )}
-                        <span className="font-extrabold text-[#23395b]">{item.correct_count} pts</span>
+                        <div className="flex flex-col items-end">
+                          <span className="font-extrabold text-[#23395b]">{item.score} pts</span>
+                          <span className="text-[10px] text-[#64748b] font-medium">{item.correct_count}/10 aciertos</span>
+                        </div>
                       </div>
                     </div>
                   );

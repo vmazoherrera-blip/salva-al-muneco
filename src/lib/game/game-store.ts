@@ -60,25 +60,79 @@ class MemoryDb {
 const memoryDb = new MemoryDb();
 
 // Room Master Questions Helpers (Solucionario and Customization)
-export function getRoomMasterQuestions(code: string): QuestionData[] {
+export async function getRoomMasterQuestions(code: string): Promise<QuestionData[]> {
   const cleanCode = code.trim().toUpperCase();
+
+  // 1. Load from Supabase if configured
+  if (isRealSupabaseAvailable() && adminClient) {
+    try {
+      const { data, error } = await adminClient
+        .from("rooms")
+        .select("master_questions")
+        .eq("code", cleanCode)
+        .maybeSingle();
+
+      if (!error && data && Array.isArray(data.master_questions) && data.master_questions.length > 0) {
+        memoryDb.masterQuestions.set(cleanCode, data.master_questions as QuestionData[]);
+        return data.master_questions as QuestionData[];
+      }
+    } catch (e) {
+      console.warn("Supabase getRoomMasterQuestions error:", e);
+    }
+  }
+
+  // 2. Fallback to memory
   let list = memoryDb.masterQuestions.get(cleanCode);
   if (!list || list.length === 0) {
     list = generateMatchQuestions();
     memoryDb.masterQuestions.set(cleanCode, list);
+
+    if (isRealSupabaseAvailable() && adminClient) {
+      try {
+        await adminClient
+          .from("rooms")
+          .update({ master_questions: list })
+          .eq("code", cleanCode);
+      } catch (e) {
+        console.warn("Failed to persist generated questions to Supabase:", e);
+      }
+    }
   }
   return list;
 }
 
-export function setRoomMasterQuestions(code: string, questions: QuestionData[]) {
+export async function setRoomMasterQuestions(code: string, questions: QuestionData[]): Promise<void> {
   const cleanCode = code.trim().toUpperCase();
   memoryDb.masterQuestions.set(cleanCode, questions);
+
+  if (isRealSupabaseAvailable() && adminClient) {
+    try {
+      await adminClient
+        .from("rooms")
+        .update({ master_questions: questions })
+        .eq("code", cleanCode);
+    } catch (e) {
+      console.warn("Failed to persist custom questions to Supabase:", e);
+    }
+  }
 }
 
-export function regenerateRoomMasterQuestions(code: string): QuestionData[] {
+export async function regenerateRoomMasterQuestions(code: string): Promise<QuestionData[]> {
   const cleanCode = code.trim().toUpperCase();
   const fresh = generateMatchQuestions();
   memoryDb.masterQuestions.set(cleanCode, fresh);
+
+  if (isRealSupabaseAvailable() && adminClient) {
+    try {
+      await adminClient
+        .from("rooms")
+        .update({ master_questions: fresh })
+        .eq("code", cleanCode);
+    } catch (e) {
+      console.warn("Failed to persist regenerated questions to Supabase:", e);
+    }
+  }
+
   return fresh;
 }
 
@@ -178,7 +232,8 @@ export async function createGameRoom(
   const clampedTime = Math.min(120, Math.max(30, timePerQuestion));
 
   // Generate fresh, completely unique randomized questions for this specific room
-  regenerateRoomMasterQuestions(code);
+  const freshQuestions = generateMatchQuestions();
+  memoryDb.masterQuestions.set(code, freshQuestions);
 
   if (isRealSupabaseAvailable() && adminClient) {
     try {
@@ -190,6 +245,7 @@ export async function createGameRoom(
           time_per_question: clampedTime,
           max_players: maxPlayers,
           status: "waiting",
+          master_questions: freshQuestions,
         })
         .select()
         .single();
@@ -245,19 +301,42 @@ export async function joinGameRoom(code: string, nickname: string, playerToken?:
         return { error: "Sala no encontrada" };
       }
 
-      // Check existing player reconnection
-      const { data: existingPlayer } = await adminClient
-        .from("players")
-        .select("*")
-        .eq("room_id", room.id)
-        .eq("player_token", token)
-        .maybeSingle();
+      // Check existing player reconnection:
+      // 1. Match by player_token if provided
+      let existingPlayer: any = null;
+      if (playerToken) {
+        const { data: byToken } = await adminClient
+          .from("players")
+          .select("*")
+          .eq("room_id", room.id)
+          .eq("player_token", token)
+          .maybeSingle();
+        if (byToken) existingPlayer = byToken;
+      }
+
+      // 2. Or match by nickname in this room (reconnection without token / on refresh / another tab)
+      if (!existingPlayer && cleanNickname) {
+        const { data: byNick } = await adminClient
+          .from("players")
+          .select("*")
+          .eq("room_id", room.id)
+          .ilike("nickname", cleanNickname)
+          .maybeSingle();
+        if (byNick) existingPlayer = byNick;
+      }
 
       if (existingPlayer) {
         await adminClient
           .from("players")
-          .update({ is_connected: true, updated_at: new Date().toISOString() })
+          .update({
+            player_token: token,
+            is_connected: true,
+            updated_at: new Date().toISOString(),
+          })
           .eq("id", existingPlayer.id);
+
+        existingPlayer.player_token = token;
+        existingPlayer.is_connected = true;
 
         addRoomEvent(cleanCode, {
           room_code: cleanCode,
@@ -328,10 +407,19 @@ export async function joinGameRoom(code: string, nickname: string, playerToken?:
   }
 
   const playerIds = memoryDb.roomPlayers.get(room.id) || [];
-  const existingId = playerIds.find((pid) => memoryDb.players.get(pid)?.player_token === token);
+  let existingId = playerToken
+    ? playerIds.find((pid) => memoryDb.players.get(pid)?.player_token === token)
+    : undefined;
+
+  if (!existingId && cleanNickname) {
+    existingId = playerIds.find(
+      (pid) => memoryDb.players.get(pid)?.nickname.toLowerCase() === cleanNickname.toLowerCase()
+    );
+  }
 
   if (existingId) {
     const existing = memoryDb.players.get(existingId)!;
+    existing.player_token = token;
     existing.is_connected = true;
     existing.updated_at = new Date().toISOString();
 
@@ -395,9 +483,9 @@ export async function startGameRoom(
   const cleanCode = code.trim().toUpperCase();
 
   if (customQuestions && customQuestions.length > 0) {
-    setRoomMasterQuestions(cleanCode, customQuestions);
+    await setRoomMasterQuestions(cleanCode, customQuestions);
   }
-  const matchQuestions = getRoomMasterQuestions(cleanCode);
+  const matchQuestions = await getRoomMasterQuestions(cleanCode);
 
   if (isRealSupabaseAvailable() && adminClient) {
     try {
@@ -525,7 +613,12 @@ function calculateQuestionStats(playerIds: string[]): QuestionAccuracyStat[] {
   return stats;
 }
 
-export async function getGameRoomState(code: string, playerToken?: string, hostToken?: string) {
+export async function getGameRoomState(
+  code: string,
+  playerToken?: string,
+  hostToken?: string,
+  nickname?: string
+) {
   const cleanCode = code.trim().toUpperCase();
 
   if (isRealSupabaseAvailable() && adminClient) {
@@ -551,17 +644,21 @@ export async function getGameRoomState(code: string, playerToken?: string, hostT
 
       if (playerToken) {
         currentPlayer = allPlayers.find((p) => p.player_token === playerToken) || null;
+      }
+      if (!currentPlayer && nickname) {
+        const cleanNick = nickname.trim().toLowerCase();
+        currentPlayer = allPlayers.find((p) => p.nickname.trim().toLowerCase() === cleanNick) || null;
+      }
 
-        if (currentPlayer && room.status === "playing") {
-          const { data: qData } = await adminClient
-            .from("player_questions")
-            .select("question_index, level, question_type, prompt_latex, options_latex, started_at")
-            .eq("player_id", currentPlayer.id)
-            .eq("question_index", currentPlayer.current_question_index)
-            .maybeSingle();
+      if (currentPlayer && room.status === "playing") {
+        const { data: qData } = await adminClient
+          .from("player_questions")
+          .select("question_index, level, question_type, prompt_latex, options_latex, started_at")
+          .eq("player_id", currentPlayer.id)
+          .eq("question_index", currentPlayer.current_question_index)
+          .maybeSingle();
 
-          currentQuestion = qData || null;
-        }
+        currentQuestion = qData || null;
       }
 
       // Check if all players finished or eliminated
@@ -588,7 +685,7 @@ export async function getGameRoomState(code: string, playerToken?: string, hostT
       };
 
       const isHost = Boolean(hostToken && hostToken === room.host_token);
-      const masterQuestions = isHost ? getRoomMasterQuestions(cleanCode) : undefined;
+      const masterQuestions = isHost ? await getRoomMasterQuestions(cleanCode) : undefined;
 
       return {
         room: room as Room,
@@ -618,20 +715,24 @@ export async function getGameRoomState(code: string, playerToken?: string, hostT
 
   if (playerToken) {
     currentPlayer = allPlayers.find((p) => p.player_token === playerToken) || null;
+  }
+  if (!currentPlayer && nickname) {
+    const cleanNick = nickname.trim().toLowerCase();
+    currentPlayer = allPlayers.find((p) => p.nickname.trim().toLowerCase() === cleanNick) || null;
+  }
 
-    if (currentPlayer && room.status === "playing") {
-      const qList = memoryDb.questions.get(currentPlayer.id) || [];
-      const q = qList.find((item) => item.question_index === currentPlayer!.current_question_index);
-      if (q) {
-        currentQuestion = {
-          question_index: q.question_index,
-          level: q.level,
-          question_type: q.question_type,
-          prompt_latex: q.prompt_latex,
-          options_latex: q.options_latex,
-          started_at: q.started_at,
-        };
-      }
+  if (currentPlayer && room.status === "playing") {
+    const qList = memoryDb.questions.get(currentPlayer.id) || [];
+    const q = qList.find((item) => item.question_index === currentPlayer!.current_question_index);
+    if (q) {
+      currentQuestion = {
+        question_index: q.question_index,
+        level: q.level,
+        question_type: q.question_type,
+        prompt_latex: q.prompt_latex,
+        options_latex: q.options_latex,
+        started_at: q.started_at,
+      };
     }
   }
 
@@ -656,7 +757,7 @@ export async function getGameRoomState(code: string, playerToken?: string, hostT
   };
 
   const isHost = Boolean(hostToken && hostToken === room.host_token);
-  const masterQuestions = isHost ? getRoomMasterQuestions(cleanCode) : undefined;
+  const masterQuestions = isHost ? await getRoomMasterQuestions(cleanCode) : undefined;
 
   return {
     room,

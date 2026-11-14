@@ -109,6 +109,7 @@ export default function HomePage() {
       // Save tokens
       localStorage.setItem("doll_room_code", roomCode);
       localStorage.setItem("doll_host_token_" + roomCode, hostToken);
+      localStorage.setItem("doll_player_token_" + roomCode, joinData.playerToken);
       localStorage.setItem("doll_player_token", joinData.playerToken);
       localStorage.setItem("doll_nickname", nickname.trim());
 
@@ -142,7 +143,10 @@ export default function HomePage() {
     setError(null);
 
     try {
-      const existingToken = localStorage.getItem("doll_player_token") || undefined;
+      const existingToken =
+        localStorage.getItem("doll_player_token_" + cleanCode) ||
+        localStorage.getItem("doll_player_token") ||
+        undefined;
 
       const res = await fetch("/api/rooms/join", {
         method: "POST",
@@ -160,6 +164,7 @@ export default function HomePage() {
       }
 
       localStorage.setItem("doll_room_code", cleanCode);
+      localStorage.setItem("doll_player_token_" + cleanCode, data.playerToken);
       localStorage.setItem("doll_player_token", data.playerToken);
       localStorage.setItem("doll_nickname", nickname.trim());
 
