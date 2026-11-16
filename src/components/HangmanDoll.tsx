@@ -20,11 +20,11 @@ export const HangmanDoll: React.FC<HangmanDollProps> = ({
   const isDead = parts === 6;
 
   // Determine doll stroke color
-  let dollColor = "#23395b"; // default navy
-  if (isSaved) dollColor = "#218653"; // emerald green
-  if (isDead) dollColor = "#c43d4d"; // alert red
+  let dollColor = "#38bdf8"; // default neon cyan / sky
+  if (isSaved) dollColor = "#10b981"; // emerald green
+  if (isDead) dollColor = "#f43f5e"; // alert red
 
-  const gallowsColor = "#8c9ba5";
+  const gallowsColor = "#64748b";
 
   return (
     <div className={`flex flex-col items-center select-none ${className}`}>
@@ -58,7 +58,7 @@ export const HangmanDoll: React.FC<HangmanDollProps> = ({
             cx="175"
             cy="82"
             r="23"
-            fill={isSaved ? "#e8f7ee" : isDead ? "#fde8ea" : "#ffffff"}
+            fill={isSaved ? "#064e3b" : isDead ? "#4c0519" : "#0f172a"}
             className={`transition-opacity duration-300 ${parts >= 1 ? "opacity-100" : "opacity-0"}`}
           />
 
@@ -129,27 +129,31 @@ export const HangmanDoll: React.FC<HangmanDollProps> = ({
 
       {/* Status Badges and Counter */}
       {showLabels && (
-        <div className="mt-2 flex flex-col items-center gap-1.5 text-center">
+        <div className="mt-3 flex flex-col items-center gap-2 text-center w-full max-w-[200px]">
           {isSaved ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#e8f7ee] text-[#218653] border border-[#a3e0be] animate-bounce">
-              <span className="w-2 h-2 rounded-full bg-[#218653]" />
-              ¡Lo salvaste! (0/6 piezas)
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-950/80 text-emerald-400 border border-emerald-500/50 shadow-sm shadow-emerald-950/40 animate-bounce">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              ¡Lo salvaste! (0/6)
             </span>
           ) : isDead ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#fde8ea] text-[#c43d4d] border border-[#f5b3b9]">
-              <span className="w-2 h-2 rounded-full bg-[#c43d4d]" />
-              Muñeco ahorcado (6/6 piezas)
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-950/80 text-rose-400 border border-rose-500/50 shadow-sm shadow-rose-950/40">
+              <span className="w-2 h-2 rounded-full bg-rose-400" />
+              Muñeco ahorcado (6/6)
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#eef4fa] text-[#23395b] border border-[#dce6ef]">
-              Peligro: <span className="font-bold text-[#c43d4d]">{parts}</span> / 6 piezas
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-900/90 text-slate-300 border border-slate-700/80 shadow-xs">
+              Peligro: <span className="font-extrabold text-rose-400">{parts}</span> / 6 piezas
             </span>
           )}
 
-          <div className="w-36 h-2 bg-[#e2ecf5] rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-slate-900/90 border border-slate-800 rounded-full overflow-hidden">
             <div
               className={`h-full transition-all duration-500 rounded-full ${
-                isSaved ? "bg-[#218653]" : isDead ? "bg-[#c43d4d]" : "bg-[#f59e0b]"
+                isSaved
+                  ? "bg-emerald-500 shadow-sm shadow-emerald-500/50"
+                  : isDead
+                  ? "bg-rose-500 shadow-sm shadow-rose-500/50"
+                  : "bg-amber-500 shadow-sm shadow-amber-500/50"
               }`}
               style={{ width: `${(parts / 6) * 100}%` }}
             />

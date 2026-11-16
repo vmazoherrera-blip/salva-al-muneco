@@ -55,7 +55,7 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
         const ctx = canvas.getContext("2d");
         if (ctx) {
           ctx.scale(2, 2);
-          ctx.fillStyle = "#eef4fa";
+          ctx.fillStyle = "#090d16";
           ctx.fillRect(0, 0, width, height);
           ctx.drawImage(image, 0, 0);
 
@@ -98,9 +98,9 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
       <button
         onClick={handleDownloadPNG}
         disabled={downloading}
-        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#23395b] hover:bg-[#1a2b45] text-white font-medium shadow-md transition-all active:scale-95 disabled:opacity-50"
+        className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold shadow-md transition-all active:scale-95 disabled:opacity-50 border border-slate-700 text-sm"
       >
-        <Download className="w-4 h-4" />
+        <Download className="w-4 h-4 text-emerald-400" />
         {downloading ? "Generando imagen..." : "Descargar Gráfico Oficial (PNG)"}
       </button>
 
@@ -108,84 +108,84 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
       <div
         ref={containerRef}
         id="podium-export-canvas"
-        className="w-full max-w-3xl bg-[#ffffff] border-2 border-[#dce6ef] rounded-3xl p-6 sm:p-8 shadow-xl text-[#23395b]"
-        style={{ backgroundColor: "#ffffff" }}
+        className="w-full max-w-3xl bg-slate-900/95 border-2 border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl text-slate-100 backdrop-blur-xl"
+        style={{ backgroundColor: "#0b0f19" }}
       >
         {/* Header */}
-        <div className="text-center pb-6 border-b border-[#e2ecf5]">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#eef4fa] text-[#23395b] text-xs font-bold tracking-wider uppercase mb-2">
+        <div className="text-center pb-5 border-b border-slate-800">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950 text-slate-300 border border-slate-800 text-xs font-bold tracking-wider uppercase mb-2">
             Resultados Oficiales • Sala #{roomCode}
           </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#23395b]">
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
             Salva al Muñeco: Matrices y Transformaciones
           </h2>
-          <p className="text-xs sm:text-sm text-[#5c7285] mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">
             Ranking final por supervivencia, aciertos y velocidad de cálculo
           </p>
         </div>
 
         {/* 1st Place Spotlight Hero Card */}
         {firstPlace && (
-          <div className="my-6 p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-[#fef7e7] to-[#fffaf0] border-2 border-[#fcd34d] shadow-sm relative overflow-hidden">
-            <div className="absolute -top-3 -right-3 w-24 h-24 bg-[#fbbf24]/10 rounded-full blur-xl pointer-events-none" />
+          <div className="my-6 p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-950 border-2 border-amber-500/50 shadow-xl shadow-amber-950/30 relative overflow-hidden">
+            <div className="absolute -top-3 -right-3 w-28 h-28 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-[#fbbf24] flex items-center justify-center text-white shadow-md">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 shadow-lg shadow-amber-950/50">
                   <Crown className="w-9 h-9" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2 justify-center sm:justify-start">
-                    <span className="px-2.5 py-0.5 rounded-full bg-[#f59e0b] text-white text-xs font-bold tracking-wide uppercase">
+                    <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 text-xs font-black tracking-wide uppercase">
                       1º Lugar • Campeón
                     </span>
                     {firstPlace.danger_parts === 0 ? (
-                      <span className="px-2 py-0.5 rounded-full bg-[#218653] text-white text-xs font-bold">
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-400 text-xs font-bold">
                         ¡Muñeco Salvado!
                       </span>
                     ) : firstPlace.danger_parts < 6 ? (
-                      <span className="px-2 py-0.5 rounded-full bg-[#3b82f6] text-white text-xs font-bold">
+                      <span className="px-2 py-0.5 rounded-full bg-blue-950/80 border border-blue-500/40 text-blue-400 text-xs font-bold">
                         Sobreviviente
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded-full bg-[#c43d4d] text-white text-xs font-bold">
+                      <span className="px-2 py-0.5 rounded-full bg-rose-950/80 border border-rose-500/40 text-rose-400 text-xs font-bold">
                         Eliminado
                       </span>
                     )}
                   </div>
-                  <h3 className="text-2xl font-black text-[#1e293b] mt-1">{firstPlace.nickname}</h3>
-                  <p className="text-xs text-[#64748b]">
-                    Velocidad promedio: <span className="font-semibold">{getAvgSpeedSec(firstPlace)}s</span> por
+                  <h3 className="text-2xl font-black text-white mt-1">{firstPlace.nickname}</h3>
+                  <p className="text-xs text-slate-400">
+                    Velocidad promedio: <span className="font-semibold text-slate-200">{getAvgSpeedSec(firstPlace)}s</span> por
                     pregunta
                   </p>
                 </div>
               </div>
 
               {/* Stats badges */}
-              <div className="flex items-center gap-3">
-                <div className="px-4 py-2 bg-white rounded-xl border border-[#fde68a] text-center shadow-sm">
-                  <span className="block text-2xl font-black text-[#23395b]">
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="px-3.5 py-2 bg-slate-950/90 rounded-xl border border-amber-500/30 text-center shadow-sm">
+                  <span className="block text-2xl font-black text-amber-400">
                     {firstPlace.score}
-                    <span className="text-xs font-normal text-[#64748b]"> pts</span>
+                    <span className="text-xs font-normal text-slate-400"> pts</span>
                   </span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Puntaje
                   </span>
                 </div>
-                <div className="px-4 py-2 bg-white rounded-xl border border-[#fde68a] text-center shadow-sm">
-                  <span className="block text-2xl font-black text-[#218653]">
+                <div className="px-3.5 py-2 bg-slate-950/90 rounded-xl border border-emerald-500/30 text-center shadow-sm">
+                  <span className="block text-2xl font-black text-emerald-400">
                     {firstPlace.correct_count}
-                    <span className="text-xs font-normal text-[#64748b]">/10</span>
+                    <span className="text-xs font-normal text-slate-400">/10</span>
                   </span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Aciertos
                   </span>
                 </div>
-                <div className="px-4 py-2 bg-white rounded-xl border border-[#fde68a] text-center shadow-sm">
-                  <span className="block text-2xl font-black text-[#23395b]">
+                <div className="px-3.5 py-2 bg-slate-950/90 rounded-xl border border-slate-700 text-center shadow-sm">
+                  <span className="block text-2xl font-black text-slate-200">
                     {(firstPlace.total_time_ms / 1000).toFixed(1)}s
                   </span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
-                    Tiempo Total
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Tiempo
                   </span>
                 </div>
               </div>
@@ -194,55 +194,55 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
         )}
 
         {/* Stepped Podium (Top 3) */}
-        <div className="my-8">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-[#64748b] text-center mb-6">
+        <div className="my-6">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 text-center mb-5">
             Podio de Honor
           </h4>
 
-          <div className="flex items-end justify-center gap-3 sm:gap-6 pt-6 pb-2">
+          <div className="flex items-end justify-center gap-2.5 sm:gap-6 pt-4 pb-2">
             {/* 2nd Place (Silver - Left) */}
-            <div className="flex-1 max-w-[170px] flex flex-col items-center">
+            <div className="flex-1 max-w-[110px] sm:max-w-[170px] flex flex-col items-center">
               {secondPlace ? (
                 <>
-                  <div className="w-10 h-10 rounded-full bg-[#94a3b8] text-white flex items-center justify-center font-bold text-sm shadow-md mb-2">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-700 border border-slate-500 text-slate-200 flex items-center justify-center font-bold text-sm shadow-md mb-2">
                     <Medal className="w-5 h-5" />
                   </div>
-                  <span className="font-bold text-sm text-[#1e293b] truncate max-w-[130px] text-center">
+                  <span className="font-bold text-xs sm:text-sm text-slate-100 truncate max-w-[100px] sm:max-w-[140px] text-center">
                     {secondPlace.nickname}
                   </span>
-                  <span className="text-xs text-[#218653] font-bold">
+                  <span className="text-[11px] sm:text-xs text-emerald-400 font-bold">
                     {secondPlace.score} pts • {secondPlace.correct_count}/10
                   </span>
-                  <span className="text-[10px] text-[#64748b]">
+                  <span className="text-[10px] text-slate-400">
                     {(secondPlace.total_time_ms / 1000).toFixed(1)}s
                   </span>
-                  <div className="w-full h-24 mt-2 rounded-t-2xl bg-gradient-to-b from-[#cbd5e1] to-[#94a3b8] flex flex-col items-center justify-center text-white font-black text-2xl shadow-inner border-t-2 border-white">
+                  <div className="w-full h-24 mt-2 rounded-t-2xl bg-gradient-to-b from-slate-400 to-slate-600 flex flex-col items-center justify-center text-slate-950 font-black text-2xl shadow-inner border-t-2 border-slate-300">
                     2
                     <span className="text-[10px] font-semibold uppercase tracking-wider opacity-90">Plata</span>
                   </div>
                 </>
               ) : (
-                <div className="w-full h-24 rounded-t-2xl bg-[#f1f5f9] border-dashed border-2 border-[#cbd5e1]" />
+                <div className="w-full h-24 rounded-t-2xl bg-slate-950/60 border-dashed border-2 border-slate-800" />
               )}
             </div>
 
             {/* 1st Place (Gold - Center) */}
-            <div className="flex-1 max-w-[190px] flex flex-col items-center -mt-6">
+            <div className="flex-1 max-w-[125px] sm:max-w-[190px] flex flex-col items-center -mt-4 sm:-mt-6">
               {firstPlace ? (
                 <>
-                  <div className="w-12 h-12 rounded-full bg-[#f59e0b] text-white flex items-center justify-center font-black text-base shadow-lg ring-4 ring-[#fef3c7] mb-2">
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center font-black text-base shadow-lg shadow-amber-950/50 ring-4 ring-amber-500/30 mb-2">
                     <Trophy className="w-6 h-6" />
                   </div>
-                  <span className="font-extrabold text-base text-[#1e293b] truncate max-w-[150px] text-center">
+                  <span className="font-black text-xs sm:text-base text-white truncate max-w-[115px] sm:max-w-[160px] text-center">
                     {firstPlace.nickname}
                   </span>
-                  <span className="text-xs text-[#218653] font-bold">
+                  <span className="text-[11px] sm:text-xs text-amber-400 font-bold">
                     {firstPlace.score} pts • {firstPlace.correct_count}/10
                   </span>
-                  <span className="text-[10px] text-[#64748b]">
+                  <span className="text-[10px] text-slate-400">
                     {(firstPlace.total_time_ms / 1000).toFixed(1)}s
                   </span>
-                  <div className="w-full h-32 mt-2 rounded-t-2xl bg-gradient-to-b from-[#fbbf24] to-[#f59e0b] flex flex-col items-center justify-center text-white font-black text-3xl shadow-inner border-t-2 border-white">
+                  <div className="w-full h-32 mt-2 rounded-t-2xl bg-gradient-to-b from-[#fbbf24] to-[#f59e0b] flex flex-col items-center justify-center text-slate-950 font-black text-3xl shadow-inner border-t-2 border-amber-200">
                     1
                     <span className="text-xs font-bold uppercase tracking-wider opacity-90">Oro</span>
                   </div>
@@ -251,51 +251,51 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
             </div>
 
             {/* 3rd Place (Bronze - Right) */}
-            <div className="flex-1 max-w-[170px] flex flex-col items-center">
+            <div className="flex-1 max-w-[110px] sm:max-w-[170px] flex flex-col items-center">
               {thirdPlace ? (
                 <>
-                  <div className="w-10 h-10 rounded-full bg-[#b45309] text-white flex items-center justify-center font-bold text-sm shadow-md mb-2">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-amber-800 border border-amber-600 text-amber-200 flex items-center justify-center font-bold text-sm shadow-md mb-2">
                     <Medal className="w-5 h-5" />
                   </div>
-                  <span className="font-bold text-sm text-[#1e293b] truncate max-w-[130px] text-center">
+                  <span className="font-bold text-xs sm:text-sm text-slate-100 truncate max-w-[100px] sm:max-w-[140px] text-center">
                     {thirdPlace.nickname}
                   </span>
-                  <span className="text-xs text-[#218653] font-bold">
+                  <span className="text-[11px] sm:text-xs text-emerald-400 font-bold">
                     {thirdPlace.score} pts • {thirdPlace.correct_count}/10
                   </span>
-                  <span className="text-[10px] text-[#64748b]">
+                  <span className="text-[10px] text-slate-400">
                     {(thirdPlace.total_time_ms / 1000).toFixed(1)}s
                   </span>
-                  <div className="w-full h-16 mt-2 rounded-t-2xl bg-gradient-to-b from-[#d97706] to-[#b45309] flex flex-col items-center justify-center text-white font-black text-xl shadow-inner border-t-2 border-white">
+                  <div className="w-full h-16 mt-2 rounded-t-2xl bg-gradient-to-b from-[#d97706] to-[#92400e] flex flex-col items-center justify-center text-white font-black text-xl shadow-inner border-t-2 border-amber-400">
                     3
                     <span className="text-[10px] font-semibold uppercase tracking-wider opacity-90">Bronce</span>
                   </div>
                 </>
               ) : (
-                <div className="w-full h-16 rounded-t-2xl bg-[#f1f5f9] border-dashed border-2 border-[#cbd5e1]" />
+                <div className="w-full h-16 rounded-t-2xl bg-slate-950/60 border-dashed border-2 border-slate-800" />
               )}
             </div>
           </div>
         </div>
 
         {/* Horizontal Comparative Bar Chart for All Players */}
-        <div className="mt-8 pt-6 border-t border-[#e2ecf5]">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#64748b]">
+        <div className="mt-8 pt-5 border-t border-slate-800">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
               Comparativa de Rendimiento ({leaderboard.length} Jugadores)
             </h4>
-            <div className="flex items-center gap-4 text-xs font-medium text-[#64748b]">
+            <div className="flex items-center gap-4 text-xs font-medium text-slate-400">
               <span className="inline-flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm bg-[#218653]" /> Aciertos (/10)
+                <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" /> Aciertos (/10)
               </span>
               <span className="inline-flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm bg-[#23395b]" /> Tiempo total
+                <span className="w-2.5 h-2.5 rounded-sm bg-cyan-500" /> Tiempo total
               </span>
             </div>
           </div>
 
           {/* Bar rows */}
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {leaderboard.map((player) => {
               const correctPct = (player.correct_count / 10) * 100;
               const isDead = player.status === "eliminado" || player.danger_parts >= 6;
@@ -304,30 +304,30 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
               return (
                 <div
                   key={player.id}
-                  className="p-2.5 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] flex flex-col gap-1.5 transition-colors"
+                  className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/80 flex flex-col gap-1.5 transition-colors"
                 >
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
-                      <span className="w-5 text-center font-bold text-[#64748b]">#{player.rank}</span>
-                      <span className="font-bold text-[#1e293b]">{player.nickname}</span>
+                      <span className="w-5 text-center font-bold text-slate-500">#{player.rank}</span>
+                      <span className="font-bold text-white">{player.nickname}</span>
                       {isSaved ? (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-[#218653] bg-[#e8f7ee] px-1.5 py-0.2 rounded">
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-400 bg-emerald-950/70 border border-emerald-500/30 px-1.5 py-0.5 rounded">
                           <CheckCircle2 className="w-3 h-3" /> Salvado
                         </span>
                       ) : isDead ? (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-[#c43d4d] bg-[#fde8ea] px-1.5 py-0.2 rounded">
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-rose-400 bg-rose-950/70 border border-rose-500/30 px-1.5 py-0.5 rounded">
                           <XCircle className="w-3 h-3" /> Eliminado
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-[#2563eb] bg-[#eff6ff] px-1.5 py-0.2 rounded">
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-blue-400 bg-blue-950/70 border border-blue-500/30 px-1.5 py-0.5 rounded">
                           Vivo ({player.danger_parts}/6)
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 font-semibold text-[#334155]">
-                      <span className="font-extrabold text-[#23395b]">{player.score} pts</span>
-                      <span className="text-[#218653] font-bold text-xs">{player.correct_count} / 10</span>
-                      <span className="inline-flex items-center gap-1 text-[#64748b] text-[11px]">
+                    <div className="flex items-center gap-3 font-semibold">
+                      <span className="font-extrabold text-white">{player.score} pts</span>
+                      <span className="text-emerald-400 font-bold text-xs">{player.correct_count} / 10</span>
+                      <span className="inline-flex items-center gap-1 text-slate-400 text-[11px]">
                         <Clock className="w-3 h-3" />
                         {(player.total_time_ms / 1000).toFixed(1)}s
                       </span>
@@ -335,10 +335,10 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
                   </div>
 
                   {/* Visual Bar representation */}
-                  <div className="w-full h-3 bg-[#e2ecf5] rounded-full overflow-hidden flex">
+                  <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden flex">
                     <div
                       className={`h-full transition-all duration-500 ${
-                        isDead ? "bg-[#c43d4d]" : "bg-[#218653]"
+                        isDead ? "bg-rose-500" : "bg-emerald-500"
                       }`}
                       style={{ width: `${correctPct}%` }}
                     />
@@ -350,7 +350,7 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
         </div>
 
         {/* Footer info */}
-        <div className="mt-8 pt-4 border-t border-[#e2ecf5] text-center text-[10px] text-[#94a3b8] flex items-center justify-between">
+        <div className="mt-8 pt-4 border-t border-slate-800 text-center text-[10px] text-slate-500 flex items-center justify-between">
           <span>Salva al Muñeco • Transformaciones Lineales</span>
           <span>Regla de desempate: 1º Supervivencia, 2º Aciertos, 3º Menor tiempo total</span>
         </div>
