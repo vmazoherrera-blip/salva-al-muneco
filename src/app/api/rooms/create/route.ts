@@ -6,7 +6,12 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const timePerQuestion = typeof body.timePerQuestion === "number" ? body.timePerQuestion : 60;
     const maxPlayers = typeof body.maxPlayers === "number" ? body.maxPlayers : 30;
-    const secretKey = typeof body.secretKey === "string" ? body.secretKey : body.moderatorKey;
+    const secretKey =
+      typeof body.moderatorSecretKey === "string"
+        ? body.moderatorSecretKey
+        : typeof body.secretKey === "string"
+        ? body.secretKey
+        : body.moderatorKey;
 
     if (!isValidModeratorKey(secretKey)) {
       return NextResponse.json(

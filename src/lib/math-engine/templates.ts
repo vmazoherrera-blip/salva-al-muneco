@@ -287,7 +287,7 @@ export function generateQ5(): QuestionData {
     questionIndex: 4,
     level: "intermedio",
     questionType: "multiple_choice",
-    promptLatex: `Determina la imagen del vector v = ${v.toLatex()} bajo una rotación de ${choice.deg} alrededor del origen:`,
+    promptLatex: `Determina la imagen del vector v = ${v.toLatex()} bajo una rotación de ${choice.name} alrededor del origen:`,
     optionsLatex: options,
     correctAnswer: res.toLatex(),
     explanationLatex: `La matriz de rotación para $${choice.deg}$ es $R = ${choice.mat.toLatex()}$.\n\nAl multiplicar $R \\cdot v = ${res.toLatex()}$.`,

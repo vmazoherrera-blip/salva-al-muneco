@@ -102,7 +102,17 @@ export function detectMathFormat(latex: string): MathElementFormat {
  */
 export function cleanLatexToNaturalText(latex: string): string {
   if (!latex) return "";
-  return latex
+
+  // 1. Temporarily extract display math blocks ($$...$$) so their delimiters and matrices are protected
+  const displayBlocks: string[] = [];
+  let text = latex.replace(/\$\$([\s\S]+?)\$\$/g, (_, inner) => {
+    const idx = displayBlocks.length;
+    displayBlocks.push(inner);
+    return `___DISPBLOCK_${idx}___`;
+  });
+
+  // 2. Clean spacing artifacts & common LaTeX symbols
+  text = text
     .replace(/\\*\[\d+p[tx]\]/gi, "\n\n")
     .replace(/\\newline/gi, "\n")
     .replace(/\\qquad/gi, " ")
@@ -111,12 +121,20 @@ export function cleanLatexToNaturalText(latex: string): string {
     .replace(/\\mathbb\{R\}/gi, "ℝ")
     .replace(/\\cdot/gi, "·")
     .replace(/\\times/gi, "×")
-    // Clean dollar signs wrapping simple variable names or values: $k = 2$, $k$, $x$, $y$, $v$, $A$, $A \cdot v$
-    .replace(/\$([A-Za-z0-9_'\s=+\-·×]+)\$/g, "$1")
-    // Clean markdown double asterisks for bold
-    .replace(/\*\*([^*]+)\*\*/g, "$1")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+    .replace(/\\circ/gi, "°");
+
+  // 3. Clean single-line simple dollar signs like $k = 5$, $k$, $x'$, $y$, $v$, $A$, $A \cdot v$ (NEVER match across newlines)
+  text = text.replace(/\$([A-Za-z0-9_'\s=+\-·×°]{1,30})\$/g, "$1");
+
+  // 4. Clean markdown double asterisks for bold
+  text = text.replace(/\*\*([^*]+)\*\*/g, "$1");
+
+  // 5. Restore display math blocks cleanly
+  displayBlocks.forEach((block, idx) => {
+    text = text.replace(`___DISPBLOCK_${idx}___`, `$$${block}$$`);
+  });
+
+  return text.replace(/\n{3,}/g, "\n\n").trim();
 }
 
 /**

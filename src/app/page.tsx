@@ -89,9 +89,11 @@ export default function HomePage() {
 
       localStorage.setItem("doll_room_code", data.room.code);
       localStorage.setItem("doll_host_token_" + data.room.code, data.hostToken);
-      localStorage.setItem("doll_player_token_" + data.room.code, data.hostPlayer.player_token);
+      if (data.hostPlayer?.player_token) {
+        localStorage.setItem("doll_player_token_" + data.room.code, data.hostPlayer.player_token);
+        localStorage.setItem("doll_player_token", data.hostPlayer.player_token);
+      }
       localStorage.setItem("doll_host_token", data.hostToken);
-      localStorage.setItem("doll_player_token", data.hostPlayer.player_token);
       localStorage.setItem("doll_nickname", nickname.trim());
 
       router.push(`/sala/${data.room.code}`);
