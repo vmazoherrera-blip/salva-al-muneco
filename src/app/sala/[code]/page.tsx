@@ -7,6 +7,7 @@ import { HangmanDoll } from "@/components/HangmanDoll";
 import { MathRenderer } from "@/components/MathRenderer";
 import { PodiumGraphic } from "@/components/PodiumGraphic";
 import { ModeratorDashboard } from "@/components/ModeratorDashboard";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   Room,
   Player,
@@ -214,12 +215,19 @@ function RoomPageContent() {
   }, [room?.status, player]);
 
   // Host starts the match
-  const handleStartGame = async () => {
+  const handleStartGame = async (overrideQuestions?: QuestionData[]) => {
     const storedHostToken = hostToken || localStorage.getItem("doll_host_token_" + roomCode);
     if (!storedHostToken) {
       setError("No tienes permisos de organizador para iniciar");
       return;
     }
+
+    const questionsToSend =
+      overrideQuestions && overrideQuestions.length > 0
+        ? overrideQuestions
+        : masterQuestions && masterQuestions.length > 0
+        ? masterQuestions
+        : undefined;
 
     setSubmitting(true);
     try {
@@ -229,7 +237,7 @@ function RoomPageContent() {
         body: JSON.stringify({
           code: roomCode,
           hostToken: storedHostToken,
-          customQuestions: masterQuestions && masterQuestions.length > 0 ? masterQuestions : undefined,
+          customQuestions: questionsToSend,
         }),
       });
       const data = await res.json();
@@ -371,14 +379,17 @@ function RoomPageContent() {
     return (
       <main className="min-h-screen flex flex-col p-3 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {/* Navigation Switch Header */}
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-6 gap-3 flex-wrap">
           <button
             onClick={() => router.push("/")}
-            className="text-xs font-bold text-slate-400 hover:text-white transition-colors"
+            className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors"
           >
             ← Salir al Inicio
           </button>
-          {renderModeratorToggle()}
+          <div className="flex items-center gap-2">
+            {renderModeratorToggle()}
+            <ThemeToggle />
+          </div>
         </div>
 
         <ModeratorDashboard
@@ -403,59 +414,66 @@ function RoomPageContent() {
     return (
       <main className="min-h-screen flex flex-col items-center justify-between p-3.5 sm:p-6 lg:p-8">
         <div className="w-full max-w-4xl my-auto flex flex-col items-center">
-          {/* Moderator Switch Header if Host */}
-          {isHost && (
-            <div className="w-full flex justify-end mb-4">
-              {renderModeratorToggle()}
+          {/* Header row with navigation & theme switcher */}
+          <div className="w-full flex justify-between items-center mb-4 gap-3">
+            <button
+              onClick={() => router.push("/")}
+              className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors"
+            >
+              ← Inicio
+            </button>
+            <div className="flex items-center gap-2">
+              {isHost && renderModeratorToggle()}
+              <ThemeToggle />
             </div>
-          )}
+          </div>
 
           {/* Room Code Card */}
-          <div className="w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl text-center mb-5">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-950/80 text-emerald-400 border border-emerald-500/30 text-xs font-bold uppercase tracking-wider mb-3">
+          <div className="w-full bg-white/95 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl dark:shadow-2xl backdrop-blur-xl text-center mb-5">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-950/80 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs font-bold uppercase tracking-wider mb-3">
               Lobby de Espera
             </span>
-            <h1 className="text-3xl sm:text-4xl font-black text-white">Sala #{roomCode}</h1>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1">
+            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white">Sala #{roomCode}</h1>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">
               Comparte el código con tus alumnos o compañeros para que ingresen
             </p>
 
             {/* Copyable Code Box */}
             <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <div className="px-6 py-3.5 rounded-2xl bg-slate-950/90 border-2 border-slate-700 font-mono font-black text-3xl sm:text-4xl tracking-widest text-emerald-400 shadow-inner select-all">
+              <div className="px-6 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/90 border-2 border-slate-300 dark:border-slate-700 font-mono font-black text-3xl sm:text-4xl tracking-widest text-emerald-600 dark:text-emerald-400 shadow-inner select-all">
                 {roomCode}
               </div>
               <button
                 onClick={copyRoomCode}
-                className="px-5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-sm shadow-md transition-all active:scale-95 flex items-center gap-2"
+                className="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-sm shadow-sm transition-all active:scale-95 flex items-center gap-2"
               >
-                {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                {copied ? <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-4 h-4" />}
                 {copied ? "¡Código Copiado!" : "Copiar Código"}
               </button>
             </div>
 
             {/* Details badge */}
-            <div className="mt-5 flex items-center justify-center gap-4 text-xs font-semibold text-slate-400">
+            <div className="mt-5 flex items-center justify-center gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
               <span className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-cyan-400" />
+                <Clock className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
                 {room.time_per_question}s por pregunta
               </span>
               <span>•</span>
               <span className="flex items-center gap-1.5">
-                <Users className="w-4 h-4 text-emerald-400" />
+                <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 {leaderboard.length} / {room.max_players} jugadores
               </span>
             </div>
           </div>
 
           {/* Players Roster */}
-          <div className="w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-7 shadow-2xl backdrop-blur-xl mb-5">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <Users className="w-5 h-5 text-emerald-400" />
+          <div className="w-full bg-white/95 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-7 shadow-xl dark:shadow-2xl backdrop-blur-xl mb-5">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 mb-4">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 Jugadores Conectados ({leaderboard.length})
               </h2>
-              <span className="text-xs text-slate-400">Máximo 30</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Máximo 30</span>
             </div>
 
             {leaderboard.length === 0 ? (
@@ -494,7 +512,7 @@ function RoomPageContent() {
           <div className="w-full text-center">
             {isHost ? (
               <button
-                onClick={handleStartGame}
+                onClick={() => handleStartGame()}
                 disabled={submitting}
                 className="w-full max-w-md py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-black text-lg shadow-xl shadow-emerald-950/70 transition-all active:scale-95 flex items-center justify-center gap-2.5 disabled:opacity-50 mx-auto"
               >
@@ -523,14 +541,14 @@ function RoomPageContent() {
     return (
       <main className="min-h-screen flex flex-col p-3 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {/* Top Game Bar */}
-        <header className="w-full bg-slate-900/90 border border-slate-800 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-xl backdrop-blur-md mb-3 sm:mb-5 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">
+        <header className="w-full bg-white/95 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-xl backdrop-blur-md mb-3 sm:mb-5 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">
           <div className="flex items-center gap-2.5 sm:gap-3">
-            <span className="font-mono font-bold text-xs uppercase px-2.5 py-1 rounded-lg bg-slate-950/80 text-slate-300 border border-slate-800">
+            <span className="font-mono font-bold text-xs uppercase px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-950/80 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800">
               Sala #{roomCode}
             </span>
-            <div className="text-sm sm:text-base font-extrabold text-white">
+            <div className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
               Pregunta {(player?.current_question_index ?? 0) + 1}
-              <span className="text-xs font-normal text-slate-400"> / 10</span>
+              <span className="text-xs font-normal text-slate-500 dark:text-slate-400"> / 10</span>
             </div>
           </div>
 
@@ -539,8 +557,8 @@ function RoomPageContent() {
             <div
               className={`flex items-center gap-1.5 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-xl font-mono font-black text-sm sm:text-base border transition-all ${
                 timeRemaining <= 10
-                  ? "bg-rose-950/90 text-rose-300 border-rose-500/70 animate-pulse shadow-sm shadow-rose-950/50"
-                  : "bg-slate-950/90 text-cyan-400 border-cyan-500/40"
+                  ? "bg-rose-50 text-rose-700 border-rose-400 dark:bg-rose-950/90 dark:text-rose-300 dark:border-rose-500/70 animate-pulse shadow-sm"
+                  : "bg-cyan-50 text-cyan-800 border-cyan-300 dark:bg-slate-950/90 dark:text-cyan-400 dark:border-cyan-500/40"
               }`}
             >
               <Clock className="w-4 h-4 shrink-0" />
@@ -548,15 +566,16 @@ function RoomPageContent() {
             </div>
           )}
 
-          {/* Player Score & Counters + Moderator Toggle */}
-          <div className="flex items-center gap-2.5 sm:gap-3 text-xs sm:text-sm font-bold">
-            <span className="px-2.5 py-1 rounded-lg bg-slate-950/90 border border-slate-800 text-slate-200">
-              Puntos: <strong className="text-base text-emerald-400">{player?.score ?? 0}</strong>
+          {/* Player Score & Counters + Moderator Toggle + ThemeToggle */}
+          <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm font-bold flex-wrap">
+            <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-950/90 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200">
+              Puntos: <strong className="text-base text-emerald-600 dark:text-emerald-400">{player?.score ?? 0}</strong>
             </span>
-            <span className="text-emerald-400">✓ {player?.correct_count ?? 0}</span>
-            <span className="text-rose-400">✗ {player?.wrong_count ?? 0}</span>
+            <span className="text-emerald-600 dark:text-emerald-400">✓ {player?.correct_count ?? 0}</span>
+            <span className="text-rose-600 dark:text-rose-400">✗ {player?.wrong_count ?? 0}</span>
 
             {isHost && renderModeratorToggle()}
+            <ThemeToggle />
           </div>
         </header>
 
@@ -885,23 +904,30 @@ function RoomPageContent() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-3.5 sm:p-6 lg:p-8">
       <div className="w-full max-w-4xl my-auto flex flex-col items-center gap-6">
-        {/* Moderator Switch Header if Host */}
-        {isHost && (
-          <div className="w-full flex justify-end">
-            {renderModeratorToggle()}
+        {/* Top Header Row with Return, Moderator Switch & ThemeToggle */}
+        <div className="w-full flex justify-between items-center gap-3">
+          <button
+            onClick={() => router.push("/")}
+            className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors"
+          >
+            ← Inicio
+          </button>
+          <div className="flex items-center gap-2">
+            {isHost && renderModeratorToggle()}
+            <ThemeToggle />
           </div>
-        )}
+        </div>
 
         {/* Top Victory message */}
         <div className="text-center px-2">
-          <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-2 shadow-sm">
-            <Sparkles className="w-3.5 h-3.5" />
+          <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-500/40 text-emerald-800 dark:text-emerald-400 text-xs font-bold uppercase tracking-wider mb-2 shadow-sm">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             Partida Concluida
           </span>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 dark:text-white">
             Podio Oficial y Ganadores
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1.5 max-w-lg mx-auto">
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1.5 max-w-lg mx-auto">
             Supervivencia confirmada • Desempate oficial por aciertos y velocidad de cálculo
           </p>
         </div>

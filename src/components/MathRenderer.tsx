@@ -111,9 +111,16 @@ export function renderLatexToHtml(latex: string, displayMode: boolean = false): 
   processed = processed.replace(/\\textit\{([^}]+)\}/g, "<em>$1</em>");
   processed = processed.replace(/\*([^*]+)\*/g, "<em>$1</em>");
 
-  // Spacing & explicit text newlines
-  processed = processed.replace(/\\newline/g, "<br/>");
-  processed = processed.replace(/\\quad/g, "&emsp;");
+  // Spacing & explicit text newlines & artifacts
+  processed = processed.replace(/\\\\\[\d+p[tx]\]/gi, "<br/><br/>");
+  processed = processed.replace(/\\\[\d+p[tx]\]/gi, "<br/><br/>");
+  processed = processed.replace(/\\newline/gi, "<br/>");
+  processed = processed.replace(/\\qquad/gi, "&emsp;&emsp;");
+  processed = processed.replace(/\\quad/gi, "&emsp;");
+  processed = processed.replace(/\\mathbb\{R\}\^2/gi, "ℝ²");
+  processed = processed.replace(/\\mathbb\{R\}/gi, "ℝ");
+  processed = processed.replace(/\\cdot/gi, " · ");
+  processed = processed.replace(/\\times/gi, " × ");
   processed = processed.replace(/\n\n/g, "<br/><br/>");
 
   // 4. Restore math tokens

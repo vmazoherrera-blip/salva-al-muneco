@@ -103,16 +103,20 @@ export function detectMathFormat(latex: string): MathElementFormat {
 export function cleanLatexToNaturalText(latex: string): string {
   if (!latex) return "";
   return latex
-    .replace(/\\\\\[\d+pt\]/g, "\n\n")
-    .replace(/\\\\\[\d+px\]/g, "\n\n")
-    .replace(/\\\[\d+pt\]/g, "\n\n")
-    .replace(/\\\[\d+px\]/g, "\n\n")
-    .replace(/\\mathbb\{R\}\^2/g, "ℝ²")
-    // Clean dollar signs wrapping simple variable names or values: $k = 2$, $k$, $x$, $y$, $v$, $A$
-    .replace(/\$([A-Za-z0-9_'\s=+-]+)\$/g, "$1")
+    .replace(/\\*\[\d+p[tx]\]/gi, "\n\n")
+    .replace(/\\newline/gi, "\n")
+    .replace(/\\qquad/gi, " ")
+    .replace(/\\quad/gi, " ")
+    .replace(/\\mathbb\{R\}\^2/gi, "ℝ²")
+    .replace(/\\mathbb\{R\}/gi, "ℝ")
+    .replace(/\\cdot/gi, "·")
+    .replace(/\\times/gi, "×")
+    // Clean dollar signs wrapping simple variable names or values: $k = 2$, $k$, $x$, $y$, $v$, $A$, $A \cdot v$
+    .replace(/\$([A-Za-z0-9_'\s=+\-·×]+)\$/g, "$1")
     // Clean markdown double asterisks for bold
     .replace(/\*\*([^*]+)\*\*/g, "$1")
-    .replace(/\n{3,}/g, "\n\n");
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 /**
