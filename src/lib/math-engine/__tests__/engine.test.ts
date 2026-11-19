@@ -452,4 +452,48 @@ describe("Visual Math Parser & Natural Language Editor (visual-parser.ts)", () =
     const updated = replacePromptMatrix(prompt, items[0].rawMatch, "\\begin{pmatrix} 9 & 8 \\\\ 7 & 6 \\end{pmatrix}");
     expect(updated).toContain("\\begin{pmatrix} 9 & 8 \\\\ 7 & 6 \\end{pmatrix}");
   });
+
+  it("validates Special Quiz 30 questions structure and keys", async () => {
+    const { getSpecialQuizRound, SPECIAL_QUIZ_ALL_30 } = await import("../special-quiz");
+    const { isValidModeratorKey, isSpecialQuizKey } = await import("../../game/game-store");
+
+    // Check keys
+    expect(isValidModeratorKey("quiz especial")).toBe(true);
+    expect(isValidModeratorKey("Quiz Especial")).toBe(true);
+    expect(isValidModeratorKey("  quiz especial  ")).toBe(true);
+    expect(isValidModeratorKey("que increible juego")).toBe(true);
+    expect(isValidModeratorKey("clave_falsa")).toBe(false);
+
+    expect(isSpecialQuizKey("quiz especial")).toBe(true);
+    expect(isSpecialQuizKey("que increible juego")).toBe(false);
+
+    // Check rounds
+    const r1 = getSpecialQuizRound(1);
+    expect(r1.length).toBe(10);
+    expect(r1[0].promptLatex).toContain("T(0, 0)");
+    expect(r1[0].correctAnswer).toBe("(1, 0), por lo tanto NO es lineal.");
+
+    const r2 = getSpecialQuizRound(2);
+    expect(r2.length).toBe(10);
+    expect(r2[0].promptLatex).toContain("2x + 3y");
+    expect(r2[0].correctAnswer).toBe("\\begin{pmatrix} 2 & 3 \\\\ 4 & -1 \\end{pmatrix}");
+
+    const r3 = getSpecialQuizRound(3);
+    expect(r3.length).toBe(10);
+    expect(r3[0].promptLatex).toContain("2x + y - 3z");
+    expect(r3[0].correctAnswer).toBe("\\begin{pmatrix} 2 & 1 & -3 \\\\ 4 & -2 & 1 \\end{pmatrix}");
+
+    const all = getSpecialQuizRound("all");
+    expect(all.length).toBe(30);
+    expect(SPECIAL_QUIZ_ALL_30.length).toBe(30);
+
+    // Verify all questions have valid options and correctAnswer
+    for (const q of all) {
+      expect(q.promptLatex.length).toBeGreaterThan(5);
+      expect(q.explanationLatex.length).toBeGreaterThan(5);
+      expect(q.optionsLatex).toBeDefined();
+      expect(q.optionsLatex?.length).toBeGreaterThanOrEqual(2);
+      expect(q.optionsLatex).toContain(q.correctAnswer);
+    }
+  });
 });

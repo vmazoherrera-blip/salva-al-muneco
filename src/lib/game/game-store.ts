@@ -11,6 +11,11 @@ import {
 import { generateMatchQuestions } from "../math-engine/generator";
 import { QuestionData } from "../math-engine/templates";
 import { validateAnswer } from "../math-engine/validator";
+import {
+  getSpecialQuizRound,
+  SPECIAL_QUIZ_ALL_30,
+  SPECIAL_QUIZ_ROUNDS_INFO,
+} from "../math-engine/special-quiz";
 
 // Server admin client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -46,6 +51,8 @@ class MemoryDb {
   questions = new Map<string, PlayerQuestion[]>(); // key: player_id -> questions[]
   events = new Map<string, RoomEvent[]>(); // key: code -> events[]
   masterQuestions = new Map<string, QuestionData[]>(); // key: code -> QuestionData[]
+  specialQuizRooms = new Set<string>(); // key: code
+  activeRound = new Map<string, 1 | 2 | 3 | "all">();
 
   generateCode(): string {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -58,6 +65,22 @@ class MemoryDb {
 }
 
 const memoryDb = new MemoryDb();
+
+export function isRoomSpecialQuiz(code: string): boolean {
+  const cleanCode = code.trim().toUpperCase();
+  return memoryDb.specialQuizRooms.has(cleanCode);
+}
+
+export function getRoomSpecialQuizRound(code: string): 1 | 2 | 3 | "all" {
+  const cleanCode = code.trim().toUpperCase();
+  return memoryDb.activeRound.get(cleanCode) || 1;
+}
+
+export function setRoomSpecialQuizRound(code: string, round: 1 | 2 | 3 | "all"): void {
+  const cleanCode = code.trim().toUpperCase();
+  memoryDb.activeRound.set(cleanCode, round);
+  memoryDb.specialQuizRooms.add(cleanCode);
+}
 
 // Room Master Questions Helpers (Solucionario and Customization)
 export async function getRoomMasterQuestions(code: string): Promise<QuestionData[]> {
@@ -119,7 +142,13 @@ export async function setRoomMasterQuestions(code: string, questions: QuestionDa
 
 export async function regenerateRoomMasterQuestions(code: string): Promise<QuestionData[]> {
   const cleanCode = code.trim().toUpperCase();
-  const fresh = generateMatchQuestions();
+  let fresh: QuestionData[];
+  if (isRoomSpecialQuiz(cleanCode)) {
+    const round = getRoomSpecialQuizRound(cleanCode);
+    fresh = getSpecialQuizRound(round);
+  } else {
+    fresh = generateMatchQuestions();
+  }
   memoryDb.masterQuestions.set(cleanCode, fresh);
 
   if (isRealSupabaseAvailable() && adminClient) {
@@ -207,6 +236,7 @@ export function sortPlayersForLeaderboard(players: Player[]): LeaderboardEntry[]
 // ---------------------------------------------------------------------------
 
 export const MODERATOR_SECRET_KEY = "que increible juego";
+export const SPECIAL_QUIZ_KEY = "quiz especial";
 
 export function isValidModeratorKey(input?: string): boolean {
   if (!input) return false;
@@ -215,7 +245,17 @@ export function isValidModeratorKey(input?: string): boolean {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
-  return clean === MODERATOR_SECRET_KEY;
+  return clean === MODERATOR_SECRET_KEY || clean === SPECIAL_QUIZ_KEY;
+}
+
+export function isSpecialQuizKey(input?: string): boolean {
+  if (!input) return false;
+  const clean = input
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  return clean === SPECIAL_QUIZ_KEY;
 }
 
 export async function createGameRoom(
@@ -227,12 +267,20 @@ export async function createGameRoom(
     throw new Error("Clave secreta incorrecta. Solo docentes o moderadores autorizados pueden crear salas.");
   }
 
+  const isSpecial = isSpecialQuizKey(secretKey);
   const code = memoryDb.generateCode();
   const hostToken = "host_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
   const clampedTime = Math.min(120, Math.max(30, timePerQuestion));
 
-  // Generate fresh, completely unique randomized questions for this specific room
-  const freshQuestions = generateMatchQuestions();
+  // Determine initial questions: Special Quiz (Round 1) or Randomized Generator
+  let freshQuestions: QuestionData[];
+  if (isSpecial) {
+    memoryDb.specialQuizRooms.add(code);
+    memoryDb.activeRound.set(code, 1);
+    freshQuestions = getSpecialQuizRound(1);
+  } else {
+    freshQuestions = generateMatchQuestions();
+  }
   memoryDb.masterQuestions.set(code, freshQuestions);
 
   if (isRealSupabaseAvailable() && adminClient) {
@@ -532,12 +580,14 @@ export async function startGameRoom(
         await adminClient.from("player_questions").insert(allQuestionsToInsert);
       }
 
+      const totalQCount = matchQuestions.length || 10;
+
       addRoomEvent(cleanCode, {
         room_code: cleanCode,
         type: "join",
         player_id: "host",
         nickname: "Organizador",
-        message: "¡La partida ha iniciado! 10 preguntas en juego.",
+        message: `¡La partida ha iniciado! ${totalQCount} preguntas en juego.`,
         timestamp: new Date().toISOString(),
       });
 
@@ -580,7 +630,7 @@ export async function startGameRoom(
     type: "join",
     player_id: "host",
     nickname: "Organizador",
-    message: "¡La partida ha iniciado! 10 preguntas en juego.",
+    message: `¡La partida ha iniciado! ${matchQuestions.length || 10} preguntas en juego.`,
     timestamp: new Date().toISOString(),
   });
 
@@ -588,9 +638,9 @@ export async function startGameRoom(
 }
 
 // Compute Question Difficulty Statistics across all players
-function calculateQuestionStats(playerIds: string[]): QuestionAccuracyStat[] {
+function calculateQuestionStats(playerIds: string[], totalQuestions: number = 10): QuestionAccuracyStat[] {
   const stats: QuestionAccuracyStat[] = [];
-  for (let idx = 0; idx < 10; idx++) {
+  for (let idx = 0; idx < totalQuestions; idx++) {
     let correct = 0;
     let wrong = 0;
     for (const pid of playerIds) {
@@ -661,11 +711,15 @@ export async function getGameRoomState(
         currentQuestion = qData || null;
       }
 
+      const isHost = Boolean(hostToken && hostToken === room.host_token);
+      const masterQuestions = await getRoomMasterQuestions(cleanCode);
+      const totalQuestions = masterQuestions?.length || 10;
+
       // Check if all players finished or eliminated
       if (
         room.status === "playing" &&
         allPlayers.length > 0 &&
-        allPlayers.every((p) => p.status === "eliminado" || p.status === "terminado" || p.current_question_index >= 10)
+        allPlayers.every((p) => p.status === "eliminado" || p.status === "terminado" || p.current_question_index >= totalQuestions)
       ) {
         await adminClient.from("rooms").update({ status: "finished" }).eq("id", room.id);
         room.status = "finished";
@@ -681,11 +735,8 @@ export async function getGameRoomState(
         inProgressCount: allPlayers.filter((p) => p.danger_parts > 0 && p.danger_parts < 6 && p.status !== "eliminado").length,
         averageScore: Math.round((allPlayers.reduce((acc, p) => acc + p.score, 0) / totalP) * 10) / 10,
         averageTimeMs: Math.round(allPlayers.reduce((acc, p) => acc + p.total_time_ms, 0) / totalP),
-        questionStats: calculateQuestionStats(allPlayers.map((p) => p.id)),
+        questionStats: calculateQuestionStats(allPlayers.map((p) => p.id), totalQuestions),
       };
-
-      const isHost = Boolean(hostToken && hostToken === room.host_token);
-      const masterQuestions = isHost ? await getRoomMasterQuestions(cleanCode) : undefined;
 
       return {
         room: room as Room,
@@ -694,7 +745,10 @@ export async function getGameRoomState(
         currentQuestion,
         events: getRoomEvents(cleanCode),
         moderatorStats,
-        masterQuestions,
+        masterQuestions: isHost ? masterQuestions : undefined,
+        isSpecialQuiz: isRoomSpecialQuiz(cleanCode),
+        activeRound: getRoomSpecialQuizRound(cleanCode),
+        totalQuestions,
         serverNow: Date.now(),
       };
     } catch (e) {
@@ -736,10 +790,14 @@ export async function getGameRoomState(
     }
   }
 
+  const isHost = Boolean(hostToken && hostToken === room.host_token);
+  const masterQuestions = await getRoomMasterQuestions(cleanCode);
+  const totalQuestions = masterQuestions?.length || 10;
+
   if (
     room.status === "playing" &&
     allPlayers.length > 0 &&
-    allPlayers.every((p) => p.status === "eliminado" || p.status === "terminado" || p.current_question_index >= 10)
+    allPlayers.every((p) => p.status === "eliminado" || p.status === "terminado" || p.current_question_index >= totalQuestions)
   ) {
     room.status = "finished";
   }
@@ -753,11 +811,8 @@ export async function getGameRoomState(
     inProgressCount: allPlayers.filter((p) => p.danger_parts > 0 && p.danger_parts < 6 && p.status !== "eliminado").length,
     averageScore: Math.round((allPlayers.reduce((acc, p) => acc + p.score, 0) / totalP) * 10) / 10,
     averageTimeMs: Math.round(allPlayers.reduce((acc, p) => acc + p.total_time_ms, 0) / totalP),
-    questionStats: calculateQuestionStats(playerIds),
+    questionStats: calculateQuestionStats(playerIds, totalQuestions),
   };
-
-  const isHost = Boolean(hostToken && hostToken === room.host_token);
-  const masterQuestions = isHost ? await getRoomMasterQuestions(cleanCode) : undefined;
 
   return {
     room,
@@ -766,7 +821,10 @@ export async function getGameRoomState(
     currentQuestion,
     events: getRoomEvents(cleanCode),
     moderatorStats,
-    masterQuestions,
+    masterQuestions: isHost ? masterQuestions : undefined,
+    isSpecialQuiz: isRoomSpecialQuiz(cleanCode),
+    activeRound: getRoomSpecialQuizRound(cleanCode),
+    totalQuestions,
     serverNow: Date.now(),
   };
 }
@@ -840,9 +898,12 @@ export async function submitGameAnswer(
         newDanger = Math.min(6, newDanger + 1);
       }
 
+      const masterQuestions = await getRoomMasterQuestions(cleanCode);
+      const totalQuestions = masterQuestions?.length || 10;
+
       if (newDanger >= 6) {
         newStatus = "eliminado";
-      } else if (questionIndex >= 9) {
+      } else if (questionIndex >= totalQuestions - 1) {
         newStatus = "terminado";
       }
 
@@ -857,7 +918,7 @@ export async function submitGameAnswer(
         })
         .eq("id", question.id);
 
-      if (nextIndex < 10 && newStatus === "jugando") {
+      if (nextIndex < totalQuestions && newStatus === "jugando") {
         await adminClient
           .from("player_questions")
           .update({ started_at: new Date().toISOString() })
@@ -984,9 +1045,11 @@ export async function submitGameAnswer(
     player.danger_parts = Math.min(6, player.danger_parts + 1);
   }
 
+  const totalQuestions = qList.length || 10;
+
   if (player.danger_parts >= 6) {
     player.status = "eliminado";
-  } else if (questionIndex >= 9) {
+  } else if (questionIndex >= totalQuestions - 1) {
     player.status = "terminado";
   }
 
@@ -998,7 +1061,7 @@ export async function submitGameAnswer(
   question.answered_at = new Date().toISOString();
   question.is_correct = isCorrect;
 
-  if (nextIndex < 10 && player.status === "jugando") {
+  if (nextIndex < totalQuestions && player.status === "jugando") {
     const nextQ = qList.find((q) => q.question_index === nextIndex);
     if (nextQ) {
       nextQ.started_at = new Date().toISOString();
@@ -1052,13 +1115,13 @@ export async function submitGameAnswer(
     }
   }
 
-  if (nextIndex >= 10 && player.status !== "eliminado") {
+  if (nextIndex >= totalQuestions && player.status !== "eliminado") {
     addRoomEvent(cleanCode, {
       room_code: cleanCode,
       type: "finished",
       player_id: player.id,
       nickname: player.nickname,
-      message: `🏁 ${player.nickname} completó las 10 preguntas (${player.correct_count}/10 aciertos)`,
+      message: `🏁 ${player.nickname} completó las ${totalQuestions} preguntas (${player.correct_count}/${totalQuestions} aciertos)`,
       timestamp: new Date().toISOString(),
     });
   }

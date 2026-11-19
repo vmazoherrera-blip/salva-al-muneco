@@ -55,6 +55,8 @@ function RoomPageContent() {
   const [events, setEvents] = useState<RoomEvent[]>([]);
   const [moderatorStats, setModeratorStats] = useState<ModeratorStats | undefined>(undefined);
   const [masterQuestions, setMasterQuestions] = useState<QuestionData[]>([]);
+  const [isSpecialQuiz, setIsSpecialQuiz] = useState<boolean>(false);
+  const [activeRound, setActiveRound] = useState<1 | 2 | 3 | "all">(1);
   const [currentQuestion, setCurrentQuestion] = useState<any>(null);
   const [serverTimeDelta, setServerTimeDelta] = useState<number>(0);
 
@@ -117,6 +119,12 @@ function RoomPageContent() {
           }
           return data.masterQuestions;
         });
+      }
+      if (typeof data.isSpecialQuiz === "boolean") {
+        setIsSpecialQuiz(data.isSpecialQuiz);
+      }
+      if (data.activeRound) {
+        setActiveRound(data.activeRound);
       }
       setCurrentQuestion(data.currentQuestion);
 
@@ -399,6 +407,8 @@ function RoomPageContent() {
           stats={moderatorStats}
           masterQuestions={masterQuestions}
           hostToken={hostToken}
+          isSpecialQuiz={isSpecialQuiz}
+          activeRound={activeRound}
           onRefresh={fetchRoomState}
           onStartGame={handleStartGame}
           onQuestionsUpdated={(qs) => setMasterQuestions(qs)}
@@ -430,9 +440,16 @@ function RoomPageContent() {
 
           {/* Room Code Card */}
           <div className="w-full bg-white/95 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl dark:shadow-2xl backdrop-blur-xl text-center mb-5">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-950/80 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs font-bold uppercase tracking-wider mb-3">
-              Lobby de Espera
-            </span>
+            {isSpecialQuiz ? (
+              <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-500/40 text-xs font-bold uppercase tracking-wider mb-3 shadow-xs">
+                <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                Cuestionario Especial Oficial • Ronda {activeRound}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-950/80 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs font-bold uppercase tracking-wider mb-3">
+                Lobby de Espera
+              </span>
+            )}
             <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white">Sala #{roomCode}</h1>
             <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">
               Comparte el código con tus alumnos o compañeros para que ingresen
@@ -535,8 +552,9 @@ function RoomPageContent() {
   // VIEW 2: GAMEPLAY (PLAYING 10 QUESTIONS)
   // =========================================================================
   if (room?.status === "playing") {
+    const totalQuestions = masterQuestions?.length || 10;
     const isPlayerDead = player?.status === "eliminado" || (player?.danger_parts ?? 0) >= 6;
-    const isPlayerFinished = player?.status === "terminado" || (player?.current_question_index ?? 0) >= 10;
+    const isPlayerFinished = player?.status === "terminado" || (player?.current_question_index ?? 0) >= totalQuestions;
 
     return (
       <main className="min-h-screen flex flex-col p-3 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
@@ -548,7 +566,7 @@ function RoomPageContent() {
             </span>
             <div className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
               Pregunta {(player?.current_question_index ?? 0) + 1}
-              <span className="text-xs font-normal text-slate-500 dark:text-slate-400"> / 10</span>
+              <span className="text-xs font-normal text-slate-500 dark:text-slate-400"> / {totalQuestions}</span>
             </div>
           </div>
 
@@ -647,7 +665,7 @@ function RoomPageContent() {
                 <div className="w-16 h-16 rounded-full bg-emerald-950/60 text-emerald-400 flex items-center justify-center mx-auto mb-4 border border-emerald-500/40">
                   <CheckCircle2 className="w-10 h-10" />
                 </div>
-                <h2 className="text-2xl font-black text-white">¡Has completado las 10 preguntas!</h2>
+                <h2 className="text-2xl font-black text-white">¡Has completado las {totalQuestions} preguntas!</h2>
                 <p className="text-sm text-slate-300 mt-2 max-w-md mx-auto">
                   Lograste <strong className="text-emerald-400">{player?.correct_count}</strong> aciertos y tu muñeco
                   tiene <strong className="text-cyan-400">{player?.danger_parts}</strong> piezas de peligro. Esperando a
@@ -882,7 +900,7 @@ function RoomPageContent() {
                           <div className="flex flex-col items-end">
                             <span className="font-extrabold text-white">{item.score} pts</span>
                             <span className="text-[10px] text-emerald-400 font-medium">
-                              {item.correct_count}/10
+                              {item.correct_count}/{totalQuestions}
                             </span>
                           </div>
                         </div>
@@ -933,7 +951,7 @@ function RoomPageContent() {
         </div>
 
         {/* Podium Graphic with PNG download */}
-        <PodiumGraphic leaderboard={leaderboard} roomCode={roomCode} />
+        <PodiumGraphic leaderboard={leaderboard} roomCode={roomCode} totalQuestions={masterQuestions?.length || 10} />
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center justify-center gap-3.5 mt-2">

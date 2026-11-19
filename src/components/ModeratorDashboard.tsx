@@ -47,6 +47,8 @@ interface ModeratorDashboardProps {
   stats?: ModeratorStats;
   masterQuestions?: QuestionData[];
   hostToken: string;
+  isSpecialQuiz?: boolean;
+  activeRound?: 1 | 2 | 3 | "all";
   onRefresh: () => void;
   onStartGame?: (customQuestions?: QuestionData[]) => void;
   onQuestionsUpdated?: (questions: QuestionData[]) => void;
@@ -59,6 +61,8 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
   stats,
   masterQuestions = [],
   hostToken,
+  isSpecialQuiz = false,
+  activeRound = 1,
   onRefresh,
   onStartGame,
   onQuestionsUpdated,
@@ -70,6 +74,9 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
   const [eventFilter, setEventFilter] = useState<string>("all");
   const [searchStudent, setSearchStudent] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Round controller for Special Quiz
+  const [selectedRound, setSelectedRound] = useState<1 | 2 | 3 | "all">(activeRound || 1);
 
   // Question editing state
   const hasInitializedRef = React.useRef(false);
@@ -128,6 +135,44 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
       }
     } catch (e: any) {
       alert(e.message || "Error de red");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Load specific round from Special Quiz
+  const handleLoadRound = async (roundNum: 1 | 2 | 3 | "all") => {
+    setActionLoading(true);
+    try {
+      const res = await fetch("/api/rooms/questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: room.code,
+          hostToken,
+          action: "load_round",
+          roundNumber: roundNum,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.questions) {
+        const cleaned = data.questions.map((q: QuestionData) => ({
+          ...q,
+          promptLatex: cleanLatexToNaturalText(q.promptLatex),
+          explanationLatex: cleanLatexToNaturalText(q.explanationLatex),
+        }));
+        isDirtyRef.current = false;
+        hasInitializedRef.current = true;
+        setLocalQuestions(cleaned);
+        setSelectedRound(roundNum);
+        setSelectedQIndex(0);
+        if (onQuestionsUpdated) onQuestionsUpdated(cleaned);
+        onRefresh();
+      } else {
+        alert(data.error || "Error al cargar la ronda seleccionada");
+      }
+    } catch (e: any) {
+      alert(e.message || "Error al comunicar con el servidor");
     } finally {
       setActionLoading(false);
     }
@@ -336,6 +381,151 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
         </div>
       </div>
 
+      {/* Cuestionario Especial / Rounds Controller Banner */}
+      <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-emerald-500/10 border-2 border-amber-500/30 dark:border-amber-500/40 shadow-sm dark:shadow-md">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-md shrink-0">
+              <Sparkles className="w-5 h-5 fill-current" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
+                Cuestionario Especial de Álgebra Lineal (30 Preguntas)
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-200/70 dark:bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-400/50">
+                  Clave: quiz especial
+                </span>
+              </h3>
+              <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400">
+                Selecciona la ronda para cargar inmediatamente sus 10 preguntas con matrices formateadas y explicaciones completas.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {room.status === "waiting" ? (
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                Lobby de espera • Listo
+              </span>
+            ) : room.status === "playing" ? (
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-cyan-100 dark:bg-cyan-950/80 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
+                En juego activo
+              </span>
+            ) : (
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                Partida concluida
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Round Switcher Buttons */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+          <button
+            type="button"
+            onClick={() => handleLoadRound(1)}
+            disabled={actionLoading}
+            className={`p-3 rounded-2xl border-2 text-left transition-all active:scale-[0.99] ${
+              selectedRound === 1
+                ? "bg-amber-100 dark:bg-amber-950/60 border-amber-500 dark:border-amber-400 shadow-md ring-2 ring-amber-500/20"
+                : "bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-500/50"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+                Ronda 1 (1-10)
+              </span>
+              {selectedRound === 1 && (
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              )}
+            </div>
+            <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
+              Propiedades T.L.
+            </div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+              Filtro del cero, aditividad, escalado
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleLoadRound(2)}
+            disabled={actionLoading}
+            className={`p-3 rounded-2xl border-2 text-left transition-all active:scale-[0.99] ${
+              selectedRound === 2
+                ? "bg-cyan-100 dark:bg-cyan-950/60 border-cyan-500 dark:border-cyan-400 shadow-md ring-2 ring-cyan-500/20"
+                : "bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800 hover:border-cyan-300 dark:hover:border-cyan-500/50"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-black text-cyan-700 dark:text-cyan-400 uppercase tracking-wider">
+                Ronda 2 (11-20)
+              </span>
+              {selectedRound === 2 && (
+                <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
+              )}
+            </div>
+            <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
+              Matrices R² → R² y R³
+            </div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+              Matrices canónicas 2×2 y 3×2
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleLoadRound(3)}
+            disabled={actionLoading}
+            className={`p-3 rounded-2xl border-2 text-left transition-all active:scale-[0.99] ${
+              selectedRound === 3
+                ? "bg-indigo-100 dark:bg-indigo-950/60 border-indigo-500 dark:border-indigo-400 shadow-md ring-2 ring-indigo-500/20"
+                : "bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-500/50"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">
+                Ronda 3 (21-30)
+              </span>
+              {selectedRound === 3 && (
+                <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+              )}
+            </div>
+            <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
+              Matrices R³ → R² y R³
+            </div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+              Matrices canónicas 2×3 y 3×3
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleLoadRound("all")}
+            disabled={actionLoading}
+            className={`p-3 rounded-2xl border-2 text-left transition-all active:scale-[0.99] ${
+              selectedRound === "all"
+                ? "bg-emerald-100 dark:bg-emerald-950/60 border-emerald-500 dark:border-emerald-400 shadow-md ring-2 ring-emerald-500/20"
+                : "bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-500/50"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+                Maratón Completa
+              </span>
+              {selectedRound === "all" && (
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              )}
+            </div>
+            <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
+              Todas las 30 Preguntas
+            </div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+              Ronda 1 + Ronda 2 + Ronda 3
+            </div>
+          </button>
+        </div>
+      </div>
+
       {/* KPI Cards Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="p-4 rounded-2xl bg-white/95 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-md text-center backdrop-blur-md">
@@ -417,7 +607,7 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
           }`}
         >
           <BookOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-          Solucionario y Respuestas (10)
+          Solucionario y Respuestas ({localQuestions.length})
         </button>
 
         <button

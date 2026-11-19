@@ -7,9 +7,10 @@ import { Trophy, Medal, Crown, Download, CheckCircle2, XCircle, Clock } from "lu
 interface PodiumGraphicProps {
   leaderboard: LeaderboardEntry[];
   roomCode: string;
+  totalQuestions?: number;
 }
 
-export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomCode }) => {
+export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomCode, totalQuestions = 10 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
 
@@ -174,7 +175,7 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
                 <div className="px-3.5 py-2 bg-slate-950/90 rounded-xl border border-emerald-500/30 text-center shadow-sm">
                   <span className="block text-2xl font-black text-emerald-400">
                     {firstPlace.correct_count}
-                    <span className="text-xs font-normal text-slate-400">/10</span>
+                    <span className="text-xs font-normal text-slate-400">/{totalQuestions}</span>
                   </span>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Aciertos
@@ -211,7 +212,7 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
                     {secondPlace.nickname}
                   </span>
                   <span className="text-[11px] sm:text-xs text-emerald-400 font-bold">
-                    {secondPlace.score} pts • {secondPlace.correct_count}/10
+                    {secondPlace.score} pts • {secondPlace.correct_count}/{totalQuestions}
                   </span>
                   <span className="text-[10px] text-slate-400">
                     {(secondPlace.total_time_ms / 1000).toFixed(1)}s
@@ -237,7 +238,7 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
                     {firstPlace.nickname}
                   </span>
                   <span className="text-[11px] sm:text-xs text-amber-400 font-bold">
-                    {firstPlace.score} pts • {firstPlace.correct_count}/10
+                    {firstPlace.score} pts • {firstPlace.correct_count}/{totalQuestions}
                   </span>
                   <span className="text-[10px] text-slate-400">
                     {(firstPlace.total_time_ms / 1000).toFixed(1)}s
@@ -261,7 +262,7 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
                     {thirdPlace.nickname}
                   </span>
                   <span className="text-[11px] sm:text-xs text-emerald-400 font-bold">
-                    {thirdPlace.score} pts • {thirdPlace.correct_count}/10
+                    {thirdPlace.score} pts • {thirdPlace.correct_count}/{totalQuestions}
                   </span>
                   <span className="text-[10px] text-slate-400">
                     {(thirdPlace.total_time_ms / 1000).toFixed(1)}s
@@ -286,7 +287,7 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
             </h4>
             <div className="flex items-center gap-4 text-xs font-medium text-slate-400">
               <span className="inline-flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" /> Aciertos (/10)
+                <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" /> Aciertos (/{totalQuestions})
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-sm bg-cyan-500" /> Tiempo total
@@ -297,7 +298,7 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
           {/* Bar rows */}
           <div className="space-y-2.5">
             {leaderboard.map((player) => {
-              const correctPct = (player.correct_count / 10) * 100;
+              const correctPct = (player.correct_count / (totalQuestions || 10)) * 100;
               const isDead = player.status === "eliminado" || player.danger_parts >= 6;
               const isSaved = player.danger_parts === 0;
 
@@ -326,7 +327,7 @@ export const PodiumGraphic: React.FC<PodiumGraphicProps> = ({ leaderboard, roomC
                     </div>
                     <div className="flex items-center gap-3 font-semibold">
                       <span className="font-extrabold text-white">{player.score} pts</span>
-                      <span className="text-emerald-400 font-bold text-xs">{player.correct_count} / 10</span>
+                      <span className="text-emerald-400 font-bold text-xs">{player.correct_count} / {totalQuestions}</span>
                       <span className="inline-flex items-center gap-1 text-slate-400 text-[11px]">
                         <Clock className="w-3 h-3" />
                         {(player.total_time_ms / 1000).toFixed(1)}s

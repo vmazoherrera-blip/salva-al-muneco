@@ -3,7 +3,11 @@ import {
   getRoomMasterQuestions,
   setRoomMasterQuestions,
   regenerateRoomMasterQuestions,
+  setRoomSpecialQuizRound,
+  isRoomSpecialQuiz,
+  getRoomSpecialQuizRound,
 } from "@/lib/game/game-store";
+import { getSpecialQuizRound } from "@/lib/math-engine/special-quiz";
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +23,12 @@ export async function GET(request: NextRequest) {
     }
 
     const questions = await getRoomMasterQuestions(code);
-    return NextResponse.json({ success: true, questions });
+    return NextResponse.json({
+      success: true,
+      questions,
+      isSpecialQuiz: isRoomSpecialQuiz(code),
+      activeRound: getRoomSpecialQuizRound(code),
+    });
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error.message || "Error al obtener preguntas" },
@@ -31,7 +40,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
-    const { code, hostToken, action, questions } = body;
+    const { code, hostToken, action, questions, roundNumber } = body;
 
     if (!code || !hostToken) {
       return NextResponse.json(
@@ -40,9 +49,27 @@ export async function POST(request: Request) {
       );
     }
 
+    if (action === "load_round") {
+      const targetRound = roundNumber ?? 1;
+      const roundQuestions = getSpecialQuizRound(targetRound);
+      await setRoomMasterQuestions(code, roundQuestions);
+      setRoomSpecialQuizRound(code, targetRound);
+      return NextResponse.json({
+        success: true,
+        questions: roundQuestions,
+        activeRound: targetRound,
+        isSpecialQuiz: true,
+      });
+    }
+
     if (action === "regenerate") {
       const freshQuestions = await regenerateRoomMasterQuestions(code);
-      return NextResponse.json({ success: true, questions: freshQuestions });
+      return NextResponse.json({
+        success: true,
+        questions: freshQuestions,
+        isSpecialQuiz: isRoomSpecialQuiz(code),
+        activeRound: getRoomSpecialQuizRound(code),
+      });
     }
 
     if (action === "set" && Array.isArray(questions)) {

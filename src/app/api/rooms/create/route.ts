@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createGameRoom, isValidModeratorKey } from "@/lib/game/game-store";
+import { createGameRoom, isValidModeratorKey, isSpecialQuizKey } from "@/lib/game/game-store";
 
 export async function POST(request: Request) {
   try {
@@ -29,6 +29,7 @@ export async function POST(request: Request) {
       success: true,
       room,
       hostToken,
+      isSpecialQuiz: isSpecialQuizKey(secretKey),
     });
   } catch (error: any) {
     console.error("Error creating room:", error);
