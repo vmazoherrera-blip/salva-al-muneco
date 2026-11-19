@@ -63,7 +63,12 @@ export default function HomePage() {
       return;
     }
 
-    if (moderatorSecretKey.trim().toLowerCase() !== "que increible juego") {
+    const cleanKey = moderatorSecretKey
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    if (cleanKey !== "que increible juego" && cleanKey !== "quiz especial") {
       setError("Clave secreta de moderador incorrecta. Solo docentes autorizados pueden crear salas.");
       return;
     }
