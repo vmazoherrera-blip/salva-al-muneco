@@ -392,7 +392,7 @@ export const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
               <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
                 Cuestionario Especial de Álgebra Lineal (30 Preguntas)
                 <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-200/70 dark:bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-400/50">
-                  Clave: quiz especial
+                  Edición Oficial (3 Rondas)
                 </span>
               </h3>
               <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400">

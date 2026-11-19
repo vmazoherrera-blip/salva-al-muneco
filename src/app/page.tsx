@@ -63,13 +63,8 @@ export default function HomePage() {
       return;
     }
 
-    const cleanKey = moderatorSecretKey
-      .trim()
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-    if (cleanKey !== "que increible juego" && cleanKey !== "quiz especial") {
-      setError("Clave secreta de moderador incorrecta. Solo docentes autorizados pueden crear salas.");
+    if (!moderatorSecretKey.trim()) {
+      setError("Por favor ingresa la clave secreta de moderador.");
       return;
     }
 
@@ -345,14 +340,6 @@ export default function HomePage() {
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                     Solo docentes con la clave autorizada pueden crear salas y acceder al solucionario y supervisor.
                   </p>
-
-                  <div className="mt-2.5 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-500/40 text-[11.5px] text-amber-800 dark:text-amber-200 flex items-start gap-2.5 shadow-xs">
-                    <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                    <div className="leading-relaxed">
-                      <strong className="font-bold text-amber-900 dark:text-amber-100">🌟 Cuestionario Especial Oficial (30 Preguntas):</strong>
-                      {" "}Digita la clave <code className="px-1.5 py-0.5 rounded bg-amber-200/60 dark:bg-amber-500/20 font-mono font-black text-amber-900 dark:text-amber-200">quiz especial</code> para activar las 30 preguntas oficiales divididas en 3 rondas (Propiedades, Matrices R² y Matrices R³).
-                    </div>
-                  </div>
                 </div>
 
                 <div>
