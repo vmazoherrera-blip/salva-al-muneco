@@ -123,8 +123,8 @@ export function cleanLatexToNaturalText(latex: string): string {
     .replace(/\\times/gi, "×")
     .replace(/\\circ/gi, "°");
 
-  // 3. Clean single-line simple dollar signs like $k = 5$, $k$, $x'$, $y$, $v$, $A$, $A \cdot v$ (NEVER match across newlines)
-  text = text.replace(/\$([A-Za-z0-9_'\s=+\-·×°]{1,30})\$/g, "$1");
+  // 3. Clean single isolated scalar variables/assignments like $k$, $k = 2$, $x$, $y$, $A$ without breaking formulas
+  text = text.replace(/\$([a-zA-Z](?:'|_\{?\d+\}?)?(?:\s*=\s*-?\d+)?)\$/g, "$1");
 
   // 4. Clean markdown double asterisks for bold
   text = text.replace(/\*\*([^*]+)\*\*/g, "$1");
